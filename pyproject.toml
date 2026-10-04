@@ -1,0 +1,30 @@
+[project]
+name = "tripwire"
+version = "0.1.0"
+description = "Open-source situational awareness dashboard built on GDELT 2.0 Events"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pandas",
+    "numpy",
+    "scikit-learn",
+    "joblib",
+    "psycopg[binary]",
+    "streamlit",
+    "pydeck",
+    "altair",
+]
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
