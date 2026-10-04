@@ -1,12 +1,12 @@
 import pandas as pd
 
 from tripwire.gdelt.categories import (
+    _BUCKETS,
     ARMED,
     CATEGORY_BY_ROOT,
     COOPERATION,
     OTHER_CONFLICT,
     PROTEST,
-    _BUCKETS,
     add_category,
 )
 
