@@ -20,3 +20,16 @@
 ## 2026-10-04: Country-centroid events (ActionGeo_Type 1) pass the ingest filter
 - **Decision:** `filter_events` keeps them; the map query will exclude `geo_type < 2` by default.
 - **Why:** PRD 5.2 says Type 1 stays in the table (they still count toward country-level spike detection) but is not drawn on the map.
+
+## 2026-10-05: Postgres on host port 5434
+- **Decision:** `docker-compose.yml` maps the db to 5434.
+- **Why:** 5432 and 5433 are used by other local projects' containers. Inside Docker the app still uses 5432.
+
+## 2026-10-05: Own migration runner, tests in throwaway schemas
+- **Decision:** `db.migrate` applies `db/migrations/*.sql` in name order and records each in `schema_migrations`. DB tests create a random schema, migrate it, then drop it (`TEST_DATABASE_URL`; skipped if unset).
+- **Alternatives:** Alembic/yoyo (new dependency, CLAUDE.md says ask first); one shared test database (tests could interfere).
+- **Why:** about 20 lines, plain SQL, and tests can't touch real data.
+
+## 2026-10-05: Upsert keeps quality_score and ingested_at
+- **Decision:** `ON CONFLICT DO UPDATE` refreshes the GDELT fields only.
+- **Why:** re-reading a file must not wipe a model score, and `ingested_at` should say when the row first arrived.
