@@ -53,3 +53,15 @@
 ## 2026-10-05: CI actions pinned to exact versions
 - **Decision:** `checkout@v7.0.1`, `setup-uv@v10.2.0`.
 - **Why:** `setup-uv` publishes no floating major tag; my first push with `@v10` failed to resolve.
+
+## 2026-10-05: Spike detection design (spikes.py)
+- **Decision:** counts per `event_date` x country x mission category; baseline = median/MAD of the 28 days before the day, excluding the day itself; flag z >= 3 and count >= 10 (inclusive). Missing days count as 0.
+- **MAD = 0 fallback:** z = (count - median) / sqrt(max(median, 1)), a Poisson-style spread (variance = mean). `baseline_mad` is stored as 0 so an alert shows which rule fired. Alternative was to skip those groups, but quiet places are exactly where a jump from 0 to 10+ matters.
+- **Guard:** `run` skips a day unless we were ingesting before the 28-day window started (`min(date_added)`). Otherwise a fresh database would flag every busy country, because the pre-collection days look like zeros.
+- **Stored with delete + insert per day** so a spike that no longer qualifies disappears. Today's counts are partial until the day ends; they can only grow, so today's z is a lower bound.
+- **Skipped:** the optional NumSources weighting (PRD marks it optional).
+
+## 2026-10-05: RETENTION_DAYS default 30 -> 60
+- **Decision:** keep 60 days of events.
+- **Alternative:** a separate `daily_counts` table that outlives pruned events.
+- **Why:** a 28-day baseline plus a 30-day backtest needs ~58 days; pruning at 30 would delete the baseline. Raw events at ~5 MB/day is ~300 MB, acceptable. Check the hosted cost at deploy time.
