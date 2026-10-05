@@ -14,5 +14,15 @@ services:
       interval: 5s
       retries: 10
 
+  worker:
+    build: .
+    command: python -m worker.run
+    environment:
+      DATABASE_URL: postgresql://tripwire:tripwire@db:5432/tripwire
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
