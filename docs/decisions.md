@@ -33,3 +33,15 @@
 ## 2026-10-05: Upsert keeps quality_score and ingested_at
 - **Decision:** `ON CONFLICT DO UPDATE` refreshes the GDELT fields only.
 - **Why:** re-reading a file must not wipe a model score, and `ingested_at` should say when the row first arrived.
+
+## 2026-10-05: ingest_files statuses and what gets retried
+- **Decision:** a file is `ok`, `missing` (404) or `error`. `ok` and `missing` are skipped on later runs; `error` is retried.
+- **Why:** GDELT really does skip slots, so retrying 404s forever wastes requests. Errors (network, corrupt zip, md5 mismatch) may be temporary.
+
+## 2026-10-05: Backfill stops 1 hour before now, and has no md5 check
+- **Decision:** backfill covers `now - N days` to `now - 1 hour`; the live cycle covers recent files. md5 is only checked for the live file.
+- **Why:** an unpublished recent slot would 404 and be recorded as `missing` permanently. Historical file URLs follow a pattern with no md5 listed (only `lastupdate.txt` lists one); the large `masterfilelist.txt` would give md5s but I judged it not worth it for this project.
+
+## 2026-10-05: urllib instead of a new HTTP library
+- **Decision:** `fetch.py` uses `urllib.request` with 3 retries and exponential backoff.
+- **Why:** stdlib, and CLAUDE.md says to ask before adding dependencies.
