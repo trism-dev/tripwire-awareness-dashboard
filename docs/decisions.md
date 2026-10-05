@@ -45,3 +45,11 @@
 ## 2026-10-05: urllib instead of a new HTTP library
 - **Decision:** `fetch.py` uses `urllib.request` with 3 retries and exponential backoff.
 - **Why:** stdlib, and CLAUDE.md says to ask before adding dependencies.
+
+## 2026-10-05: Minimal worker now, app service later
+- **Decision:** `worker/run.py` only ingests (a 2-hour catch-up pass, then the newest file, every 15 min). Spikes and retention come in week 2. Compose has `db` and `worker`; the `app` service is added when `app/Home.py` exists.
+- **Why:** gets freshness running and fills gaps after outages without writing code ahead of its week. Each pass opens a fresh DB connection, so a Postgres restart can't leave the worker stuck.
+
+## 2026-10-05: CI actions pinned to exact versions
+- **Decision:** `checkout@v7.0.1`, `setup-uv@v10.2.0`.
+- **Why:** `setup-uv` publishes no floating major tag; my first push with `@v10` failed to resolve.
