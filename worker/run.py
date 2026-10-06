@@ -10,7 +10,7 @@ from tripwire.ingest import run_cycle
 log = logging.getLogger("worker")
 
 POLL_SECONDS = 15 * 60
-CATCH_UP_DAYS = 1 / 12  # re-check the last 2 hours so a worker outage leaves no gaps
+CATCH_UP_DAYS = 1  # re-check the last day so a laptop sleep or outage leaves no gaps
 
 
 def tick(conn, fetch=None) -> None:

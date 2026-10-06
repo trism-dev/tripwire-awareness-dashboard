@@ -65,3 +65,20 @@
 - **Decision:** keep 60 days of events.
 - **Alternative:** a separate `daily_counts` table that outlives pruned events.
 - **Why:** a 28-day baseline plus a 30-day backtest needs ~58 days; pruning at 30 would delete the baseline. Raw events at ~5 MB/day is ~300 MB, acceptable. Check the hosted cost at deploy time.
+
+## 2026-10-06: Map colours and the "touching dots" limit
+- **Decision:** categories use the first six slots of the dataviz skill's palette in fixed order (Armed conflict, Protest, Threats, Force posture, Mass violence, Other conflict), with separate light and dark shades, stroke ring on each dot, rarest categories drawn last (on top).
+- **What was checked:** `validate_palette.js` passes the five default categories on adjacent pairs in light and dark mode. It FAILS the stricter all-pairs test (normal-vision floor 12.9 light / 10.6 dark, below the required 15), which is the right test for a scatter map because any two dots can touch. The documented palette only passes all-pairs for 3 series.
+- **Alternatives:** fold to 3 colours (hides Mass violence and Force posture, the rarest and most important); facet into 5 small maps (too heavy); invent new hues (breaks the "documented palette only" rule).
+- **Mitigation:** colour is never the only cue. The legend (with counts), hover tooltip, category filter and the events table all name the category in text. Revisit if users confuse categories on the map.
+
+## 2026-10-06: Reference lookups copied from GDELT into the repo
+- **Decision:** `tripwire/data/fips_countries.tsv` and `cameo_eventcodes.tsv` are GDELT's own lookup files (downloaded once from gdeltproject.org/data/lookups/). Two country codes (RB = Serbia, OC = ocean) and three event codes (`---`, 106, 1213) in real data are missing from them. Countries are patched in `fips.py`; event codes fall back to the parent code ("... (general)").
+- **Why:** a hand-typed table of 270 countries would have errors; the official file is the source of truth and the test checks it.
+
+## 2026-10-06: App design choices
+- **One short connection per cached query** (60 s cache) instead of a shared connection: Streamlit runs scripts on threads, and a shared psycopg connection is not thread-safe. Cost is a few ms locally.
+- **Map query loads only the columns needed to draw a point;** full detail for one event is fetched on click. Capped at 50,000 points (best-sourced first) with a visible "showing N of M" message.
+- **Detail and tooltip text is plain text,** never HTML or markdown, because actor and place names come from GDELT. Source links must start with http:// or https://.
+- **Measured:** 7-day view (46,593 events) = 66 ms count + 231 ms map query on the server; the page switched from 24 h to 7 days in about 0.9 s in the browser (target < 3 s).
+- **Worker catch-up window raised from 2 h to 24 h** after the laptop slept overnight and left a 12 h gap.

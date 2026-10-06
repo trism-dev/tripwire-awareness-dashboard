@@ -24,5 +24,17 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  app:
+    build: .
+    command: streamlit run app/Home.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
+    environment:
+      DATABASE_URL: postgresql://tripwire:tripwire@db:5432/tripwire
+    ports:
+      - "8501:8501"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:

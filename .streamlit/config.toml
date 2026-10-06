@@ -1,0 +1,6 @@
+[theme]
+# Neutral accent so filter chips do not read as warnings (red) or as a data category (blue).
+primaryColor = "#475569"
+
+[client]
+toolbarMode = "minimal"
