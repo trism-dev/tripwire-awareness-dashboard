@@ -82,3 +82,15 @@
 - **Detail and tooltip text is plain text,** never HTML or markdown, because actor and place names come from GDELT. Source links must start with http:// or https://.
 - **Measured:** 7-day view (46,593 events) = 66 ms count + 231 ms map query on the server; the page switched from 24 h to 7 days in about 0.9 s in the browser (target < 3 s).
 - **Worker catch-up window raised from 2 h to 24 h** after the laptop slept overnight and left a 12 h gap.
+
+## 2026-10-07: Map draws one dot per place and category (review fix)
+- **Decision:** `queries.map_events` groups events by (lat, lon, category). Each dot carries the best-sourced event's id (what a click opens) and an event count. The header says "Events in view" (events) and "Places on map" (dots).
+- **Why:** an independent review found that GDELT puts many events on exactly the same point (39,179 events sat on 6,809 distinct place+category spots in 7 days). Drawing all of them hid most dots under others and made the map spec 18.3 MB, 2.5 s to serialize on every rerun. Grouped: 3.2 MB, 0.12 s. My first timing (0.9 s) was wrong because it measured when the header numbers rendered, not when the map finished.
+- **Also fixed from the review:**
+  - A map selection is remembered by position in the data, so after a filter change it could show an unrelated event. The map key now changes with the filters and the data, and a selection is only trusted if that event is on the map.
+  - The Countries filter cleared itself whenever the option order changed (needs a widget key).
+  - Every DB connection sets the session time zone to UTC, so "UTC" labels are true on any Postgres.
+  - Visitors see a fixed message, not DB host/port/stack traces (`showErrorDetails = "none"`).
+  - Detail text is plain `st.text` lines that wrap; the footer is regular text, not a faint caption.
+- **Not fixed (judged not worth it now):** a country spanning the antimeridian opens zoomed out (known limit); tie-breaking in the ordering is already deterministic after grouping.
+- **Process note:** review agents are expensive. After this one hit the session limit, remaining checks were done by hand.

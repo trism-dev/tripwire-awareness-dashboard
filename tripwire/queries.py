@@ -6,7 +6,7 @@ import pandas as pd
 import psycopg
 from psycopg.rows import dict_row
 
-MAP_LIMIT = 50_000  # most points the map will draw; keeps the page fast
+MAP_LIMIT = 20_000  # most dots (places) the map will draw
 
 
 @dataclass(frozen=True)
@@ -59,25 +59,34 @@ def category_counts(conn: psycopg.Connection, f: Filters) -> dict[str, int]:
 
 
 def map_events(conn: psycopg.Connection, f: Filters, limit: int = MAP_LIMIT) -> pd.DataFrame:
-    """Just the columns needed to draw and label a point. Best-sourced events first if capped."""
+    """One row per place + category, because GDELT puts many events on exactly the same point.
+
+    Drawing every event would stack dots invisibly and send ~6x more data to the browser.
+    global_event_id is the best-sourced event at that spot (what a click opens); n_events says
+    how many events the dot stands for. Best-sourced places first if capped.
+    """
     where, params = _where(f)
-    cols = [
-        "global_event_id",
-        "lat",
-        "lon",
-        "category",
-        "num_sources",
-        "country_code",
-        "geo_fullname",
-        "to_char(date_added AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS added",
-    ]
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
-            f"SELECT {', '.join(cols)} FROM events WHERE {where} "
-            "ORDER BY num_sources DESC, date_added DESC LIMIT %s",
+            f"""
+            SELECT lat, lon, category,
+                   count(*) AS n_events,
+                   max(num_sources) AS num_sources,
+                   (array_agg(global_event_id
+                              ORDER BY num_sources DESC NULLS LAST, date_added DESC, global_event_id))[1]
+                       AS global_event_id,
+                   min(country_code) AS country_code,
+                   min(geo_fullname) AS geo_fullname,
+                   to_char(max(date_added) AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS added
+            FROM events WHERE {where}
+            GROUP BY lat, lon, category
+            ORDER BY max(num_sources) DESC NULLS LAST, lat, lon, category
+            LIMIT %s
+            """,
             [*params, limit],
         )
-        return pd.DataFrame(cur.fetchall(), columns=[*cols[:-1], "added"])
+        columns = [c.name for c in cur.description]
+        return pd.DataFrame(cur.fetchall(), columns=columns)
 
 
 def table_events(conn: psycopg.Connection, f: Filters, limit: int = 500) -> pd.DataFrame:

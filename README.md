@@ -12,12 +12,15 @@ You need Docker Desktop, [uv](https://docs.astral.sh/uv/) and `make`.
 
 ```bash
 cp .env.example .env     # local settings (the database runs in Docker on port 5434)
-make up                  # starts Postgres and the 15-minute ingestion worker
-make migrate             # creates the tables
+make up                  # starts Postgres, the 15-minute ingestion worker and the dashboard
+make migrate             # creates the tables (the worker also does this on start)
 make backfill DAYS=7     # loads a week of events (about 10 minutes); 58 days is needed for spikes
-make app                 # dashboard at http://localhost:8501
+                         # then open the dashboard at http://localhost:8501
 make test && make lint
 ```
+
+`make app` runs the dashboard from your working copy instead (for development). It uses the same
+port as the Docker one, so run `docker compose stop app` first.
 
 Other commands: `make ingest` (one cycle), `make spikes` (recompute spikes).
 

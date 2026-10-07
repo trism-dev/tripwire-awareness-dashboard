@@ -11,7 +11,12 @@ MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "db" / "migrations"
 
 
 def connect(url: str | None = None) -> psycopg.Connection:
-    return psycopg.connect(url or load_settings().database_url)
+    conn = psycopg.connect(url or load_settings().database_url)
+    conn.execute(
+        "SET TIME ZONE 'UTC'"
+    )  # all times are UTC (CLAUDE.md), whatever the server default
+    conn.commit()
+    return conn
 
 
 def migrate(conn: psycopg.Connection) -> list[str]:

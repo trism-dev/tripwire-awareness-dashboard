@@ -4,3 +4,4 @@ primaryColor = "#475569"
 
 [client]
 toolbarMode = "minimal"
+showErrorDetails = "none"  # no stack traces, hosts or paths for visitors

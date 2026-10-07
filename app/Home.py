@@ -1,5 +1,6 @@
 """Tripwire dashboard (PRD 5.6): map, filters, event detail, events table."""
 
+import logging
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -38,9 +39,6 @@ CATEGORY_COLORS = {
     cat.OTHER_CONFLICT: ("#008300", "#008300"),
 }
 WINDOWS = {"Last 24 hours": 24, "Last 7 days": 168}
-
-st.set_page_config(page_title="Tripwire", layout="wide")
-
 
 # ---- helpers ---------------------------------------------------------------------------------
 
@@ -124,7 +122,7 @@ def render_header(latest, counts: dict, shown: int):
     )
     total = sum(counts.values())
     middle.metric("Events in view", f"{total:,}")
-    right.metric("Drawn on map", f"{shown:,}")
+    right.metric("Places on map", f"{shown:,}", help="One dot per place and category.")
     if age > STALE_AFTER_MIN:
         st.warning(f"Data is {age_text(age)}; the target is under {STALE_AFTER_MIN} minutes.")
 
@@ -139,7 +137,7 @@ def render_legend(counts: dict):
             )
 
 
-def render_map(points: pd.DataFrame):
+def render_map(points: pd.DataFrame, key: str):
     dark = is_dark()
     df = prepare_points(points, dark)
     layer = pdk.Layer(
@@ -156,6 +154,7 @@ def render_map(points: pd.DataFrame):
                 "country",
                 "geo_fullname",
                 "num_sources",
+                "n_events",
                 "added",
             ]
         ],
@@ -170,7 +169,8 @@ def render_map(points: pd.DataFrame):
         auto_highlight=True,
     )
     tooltip = {
-        "text": "{category}\n{geo_fullname} ({country})\n{num_sources} source(s) · {added} UTC"
+        "text": "{category}\n{geo_fullname} ({country})\n"
+        "{n_events} event(s), best sourced by {num_sources} source(s) · {added} UTC"
     }
     deck = pdk.Deck(
         layers=[layer],
@@ -179,13 +179,16 @@ def render_map(points: pd.DataFrame):
         map_style="dark" if dark else "light",  # must match the palette shade chosen above
     )
     state = st.pydeck_chart(
-        deck, on_select="rerun", selection_mode="single-object", key="map", height=560
+        deck, on_select="rerun", selection_mode="single-object", key=key, height=560
     )
     picked = state.selection.objects.get("events") or []
-    return int(picked[0]["global_event_id"]) if picked else None
+    event_id = int(picked[0]["global_event_id"]) if picked else None
+    # Streamlit remembers a selection by position in the data, so after the data changes it can
+    # point at a different dot. Only trust it if that event is really one of the dots drawn now.
+    return event_id if event_id in set(points["global_event_id"]) else None
 
 
-def render_detail(event_id: int | None):
+def render_detail(event_id: int | None, n_here: int = 1):
     st.subheader("Event detail")
     if event_id is None:
         st.info("Click a dot on the map to see who, where, what and the source article.")
@@ -194,8 +197,10 @@ def render_detail(event_id: int | None):
     if e is None:
         st.warning("That event is no longer in the database.")
         return
-    # GDELT strings are untrusted, so they go into a dataframe (plain text), never into markdown.
-    rows = {
+    if n_here > 1:
+        st.caption(f"{n_here} events share this spot; showing the best-sourced one.")
+    # GDELT strings are untrusted, so they are shown with st.text (plain text), never markdown.
+    lines = {
         "Category": e["category"] or "Uncategorised",
         "Event": f"{event_description(e['event_code'])} (CAMEO {e['event_code']})",
         "Where": f"{e['geo_fullname']} - {country_name(e['country_code'])} ({e['country_code']})",
@@ -205,11 +210,11 @@ def render_detail(event_id: int | None):
         "Reported (UTC)": e["date_added"].strftime("%Y-%m-%d %H:%M"),
         "Sources": str(e["num_sources"]),
         "Articles / mentions": f"{e['num_articles']} / {e['num_mentions']}",
-        "Goldstein": f"{one_decimal(e['goldstein'])}  (-10 conflict ... +10 cooperation)",
-        "Avg tone": f"{one_decimal(e['avg_tone'])}  (negative = negative coverage)",
+        "Goldstein": f"{one_decimal(e['goldstein'])} (-10 conflict to +10 cooperation)",
+        "Avg tone": f"{one_decimal(e['avg_tone'])} (negative = negative coverage)",
     }
-    detail = pd.DataFrame({"Field": list(rows), "Value": list(rows.values())})
-    st.dataframe(detail, hide_index=True, width="stretch", height=(len(detail) + 1) * 35 + 3)
+    for label, value in lines.items():
+        st.text(f"{label}: {value}")
     url = safe_url(e["source_url"])
     if url:
         st.link_button("Open source article", url)
@@ -269,10 +274,13 @@ actors, event type and a link to the source article.
 
 
 def main():
+    st.set_page_config(page_title="Tripwire", layout="wide")
     try:
         latest, countries = load_header()
-    except psycopg.Error as exc:
-        st.error(f"Cannot reach the database: {exc}")
+    except psycopg.Error:
+        # Details stay in the server log; visitors only get a fixed message.
+        logging.getLogger("app").exception("database unreachable")
+        st.error("Cannot reach the database. Is it running? (make up)")
         st.stop()
     if latest is None:
         st.info("No data yet. Run `make backfill DAYS=1` to load some events.")
@@ -292,6 +300,7 @@ def main():
         picked_countries = st.multiselect(
             "Countries",
             [code for code, _ in countries],
+            key="countries",  # without a key, a reordered option list would clear the selection
             format_func=lambda code: f"{country_name(code)} ({code})",
             help="GDELT uses FIPS 10-4 codes, not ISO. Leave empty for all countries.",
         )
@@ -314,16 +323,17 @@ def main():
     if points.empty:
         st.info("No events match these filters. Try a longer window or fewer filters.")
     else:
-        if sum(counts.values()) > len(points):
-            st.caption(
-                f"Showing the {len(points):,} best-sourced of {sum(counts.values()):,} events. "
-                "Narrow the filters to see all."
+        if len(points) >= queries.MAP_LIMIT:
+            st.markdown(
+                f"Showing the {queries.MAP_LIMIT:,} best-sourced places. Narrow the filters to see all."
             )
-        map_col, detail_col = st.columns([5, 2])
+        map_col, detail_col = st.columns([3, 2])
         with map_col:
-            selected = render_map(points)
+            # New widget key whenever the filters or the data change, so no stale selection survives.
+            selected = render_map(points, key=f"map-{abs(hash((f, latest)))}")
         with detail_col:
-            render_detail(selected)
+            here = points.loc[points["global_event_id"] == selected, "n_events"]
+            render_detail(selected, int(here.iloc[0]) if len(here) else 1)
 
     events_tab, about_tab = st.tabs(["Events table", "About"])
     with events_tab:
@@ -332,10 +342,11 @@ def main():
         render_about()
 
     st.divider()
-    st.caption(
+    st.markdown(
         f"Data: [The GDELT Project]({GDELT_URL}). GDELT is free to use with attribution. "
         f"· [Source code]({REPO_URL})"
     )
 
 
-main()
+if __name__ == "__main__":  # true under `streamlit run`; false when tests import helpers
+    main()
