@@ -5,7 +5,7 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from tripwire.spikes import MAD_TO_SIGMA, detect, run
+from tripwire.spikes import MAD_TO_SIGMA, daily_counts, detect, run, trend
 
 DAY = date(2026, 10, 1)
 ARMED = "Armed conflict"
@@ -135,3 +135,56 @@ def test_run_skips_when_history_is_too_short(conn):
     add_events(conn, DAY, 50)
     assert run(conn, DAY).empty
     assert spike_rows(conn) == []
+
+
+# ---- trend series (the chart) ------------------------------------------------------------------
+
+
+def one_group(series, today):
+    key = ("UP", ARMED)
+    return counts_frame({key: series}, {key: today})[["day", "count"]]
+
+
+def test_trend_matches_hand_computed_numbers():
+    # baseline 8s and 12s: median 10, MAD 2, sigma 2.9652 -> threshold = 10 + 3 * 2.9652
+    out = trend(one_group([8] * 14 + [12] * 14, 20), DAY, days=1)
+    row = out.iloc[0]
+    assert (row["count"], row["typical"]) == (20, 10.0)
+    assert row["threshold"] == pytest.approx(10 + 3 * MAD_TO_SIGMA * 2)
+    assert row["flagged"]
+    assert not trend(one_group([8] * 14 + [12] * 14, 18), DAY, days=1).iloc[0]["flagged"]
+
+
+def test_trend_has_one_row_per_day_with_missing_days_as_zero():
+    counts = one_group([5] * 28, 5)
+    out = trend(counts[counts["day"] != DAY - timedelta(days=3)], DAY, days=10)
+    assert len(out) == 10
+    assert out["day"].iloc[-1] == pd.Timestamp(DAY)
+    assert out.loc[out["day"] == pd.Timestamp(DAY - timedelta(days=3)), "count"].item() == 0
+
+
+def test_trend_flags_the_same_days_as_detect():
+    series = [8] * 14 + [12] * 14
+    for today in (9, 18, 20, 60):
+        counts = one_group(series, today)
+        flagged_by_trend = bool(trend(counts, DAY, days=1).iloc[0]["flagged"])
+        assert flagged_by_trend == (
+            not detect(counts.assign(country_code="UP", category=ARMED), DAY).empty
+        )
+
+
+def test_trend_uses_poisson_threshold_when_mad_is_zero():
+    out = trend(one_group([4] * 20 + [3] * 4 + [5] * 4, 10), DAY, days=1).iloc[0]
+    assert out["threshold"] == pytest.approx(4 + 3 * 2)  # median 4 + 3 * sqrt(4)
+    assert out["flagged"]  # z = 3.0 exactly, count 10 >= floor
+
+
+def test_daily_counts_can_be_limited_to_one_group(conn):
+    add_events(conn, DAY, 3, country="UP", category=ARMED)
+    add_events(conn, DAY, 2, country="IS", category=ARMED)
+    add_events(conn, DAY, 4, country="UP", category="Protest & unrest")
+    everything = daily_counts(conn, DAY, DAY)
+    assert int(everything["count"].sum()) == 9
+    one = daily_counts(conn, DAY, DAY, country="UP", category=ARMED)
+    assert list(one["count"]) == [3]
+    assert int(daily_counts(conn, DAY, DAY, country="UP")["count"].sum()) == 7

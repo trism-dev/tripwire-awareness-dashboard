@@ -2,19 +2,21 @@
 
 import logging
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 # `streamlit run app/Home.py` only puts app/ on the import path, so add the project root.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import altair as alt
 import numpy as np
 import pandas as pd
 import psycopg
 import pydeck as pdk
 import streamlit as st
 
-from tripwire import queries
+from tripwire import queries, spikes
+from tripwire.config import load_settings
 from tripwire.db import connect
 from tripwire.fips import country_name
 from tripwire.gdelt import categories as cat
@@ -39,6 +41,7 @@ CATEGORY_COLORS = {
     cat.OTHER_CONFLICT: ("#008300", "#008300"),
 }
 WINDOWS = {"Last 24 hours": 24, "Last 7 days": 168}
+RANKINGS = {"Score": "z", "Event count": "count"}
 
 # ---- helpers ---------------------------------------------------------------------------------
 
@@ -107,6 +110,29 @@ def load_table(f: Filters):
 def load_detail(event_id: int):
     with connect() as conn:
         return queries.event_detail(conn, event_id)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_alert_days():
+    with connect() as conn:
+        return queries.spike_days(conn)
+
+
+@st.cache_data(ttl=60, show_spinner=False)
+def load_alerts(day):
+    with connect() as conn:
+        return queries.spike_alerts(conn, day)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_trend(country: str, category: str, end):
+    """30 daily rows for one country x category, scored against the 28 days before each day."""
+    with connect() as conn:
+        counts = spikes.daily_counts(
+            conn, end - timedelta(days=29 + spikes.WINDOW_DAYS), end, country, category
+        )
+    settings = load_settings()
+    return spikes.trend(counts, end, 30, settings.spike_z, settings.spike_min_count)
 
 
 # ---- page sections ---------------------------------------------------------------------------
@@ -222,6 +248,123 @@ def render_detail(event_id: int | None, n_here: int = 1):
         st.caption("No usable source link.")
 
 
+def render_alerts(categories: list[str], countries: list[str]):
+    days = load_alert_days()
+    if not days:
+        st.info(
+            "No spikes yet. They need 28+ days of data; run `make spikes` or wait for the worker."
+        )
+        return
+    today = datetime.now(UTC).date()
+    left, right = st.columns(2)
+    day = left.selectbox(
+        "Day (UTC)", days, format_func=lambda d: f"{d}" + (" (so far today)" if d == today else "")
+    )
+    rank = right.radio("Rank by", list(RANKINGS), horizontal=True)
+    alerts = load_alerts(day)
+    alerts = alerts[alerts["category"].isin(categories)]
+    if countries:
+        alerts = alerts[alerts["country_code"].isin(countries)]
+    alerts = alerts.sort_values(RANKINGS[rank], ascending=False).reset_index(drop=True)
+    if alerts.empty:
+        st.info("No spikes for this day with the current category and country filters.")
+        return
+    st.caption(
+        "A spike is a country and category with at least 10 events in a day and a Score of 3 or more. "
+        "Score = how far above a typical day it is, measured in normal day-to-day swings; the "
+        "typical day is the median of the previous 28 days. 'Quiet baseline' means the place is "
+        "usually near zero, so a Poisson spread is used. Select a row to chart it in the Trend tab."
+    )
+    table = pd.DataFrame(
+        {
+            "Country": alerts["country_code"].map(country_name),
+            "Category": alerts["category"],
+            "Events": alerts["count"],
+            "Typical day": alerts["baseline_median"].round(1),
+            "Score": alerts["z"].round(1),
+            "Rule": np.where(alerts["baseline_mad"] > 0, "normal", "quiet baseline"),
+        }
+    )
+    # The key changes with the data, so an old row selection can never point at a different row.
+    key = f"alerts-{day}-{rank}-{abs(hash((tuple(categories), tuple(countries))))}"
+    state = st.dataframe(
+        table,
+        hide_index=True,
+        width="stretch",
+        on_select="rerun",
+        selection_mode="single-row",
+        key=key,
+    )
+    rows = state.selection.rows
+    if rows and rows[0] < len(alerts):
+        pick = (alerts.loc[rows[0], "country_code"], alerts.loc[rows[0], "category"])
+        if st.session_state.get("alert_pick") != pick:  # only on a new click, so the Trend
+            st.session_state["alert_pick"] = pick  # tab's own pickers still work afterwards
+            st.session_state["trend_country"], st.session_state["trend_category"] = pick
+
+
+def trend_chart(df: pd.DataFrame, dark: bool):
+    line = "#3987e5" if dark else "#2a78d6"  # palette slot 1
+    flag = "#d95926" if dark else "#eb6834"  # palette slot 2
+    muted = "#9a9992" if dark else "#6b6a66"
+    x = alt.X("day:T", title=None, axis=alt.Axis(format="%b %d", labelOverlap=True))
+    tip = [
+        alt.Tooltip("day:T", title="Day (UTC)", format="%Y-%m-%d"),
+        alt.Tooltip("count:Q", title="Events"),
+        alt.Tooltip("typical:Q", title="Typical day", format=".1f"),
+        alt.Tooltip("threshold:Q", title="Flag above", format=".1f"),
+    ]
+    base = alt.Chart(df).encode(x=x)
+    band = base.mark_area(opacity=0.14, color=muted).encode(y="typical:Q", y2="threshold:Q")
+    threshold = base.mark_line(color=muted, strokeDash=[5, 4], strokeWidth=1.5).encode(
+        y="threshold:Q"
+    )
+    events = base.mark_line(color=line, strokeWidth=2).encode(
+        y=alt.Y("count:Q", title="Events per day", scale=alt.Scale(zero=True)), tooltip=tip
+    )
+    flagged = (
+        base.transform_filter("datum.flagged")
+        .mark_point(shape="diamond", size=130, filled=True, color=flag, opacity=1)
+        .encode(y="count:Q", tooltip=tip)
+    )
+    return (band + threshold + events + flagged).properties(height=320)
+
+
+def render_trend(country_codes: list[str]):
+    options = list(country_codes)
+    wanted = st.session_state.get("trend_country")
+    if wanted and wanted not in options:
+        options.insert(0, wanted)
+    left, right = st.columns(2)
+    country = left.selectbox(
+        "Country",
+        options,
+        format_func=lambda code: f"{country_name(code)} ({code})",
+        key="trend_country",
+    )
+    category = right.selectbox("Category", cat.DEFAULT_VISIBLE, key="trend_category")
+    df = load_trend(country, category, datetime.now(UTC).date())
+    if df["count"].sum() == 0:
+        st.info("No events for this country and category in the last 30 days.")
+        return
+    st.altair_chart(trend_chart(df, is_dark()), width="stretch")
+    st.caption(
+        "Blue line: events per day. Grey band: from a typical day up to the flag threshold "
+        "(dashed). Orange diamonds: days flagged as spikes. The last day is partial until midnight UTC."
+    )
+    with st.expander("Show the numbers"):
+        shown = df.assign(day=df["day"].dt.strftime("%Y-%m-%d")).rename(
+            columns={
+                "day": "Day (UTC)",
+                "count": "Events",
+                "typical": "Typical day",
+                "threshold": "Flag above",
+                "flagged": "Flagged",
+            }
+        )
+        st.dataframe(shown.round(1), hide_index=True, width="stretch")
+
+
 def render_table(f: Filters):
     table = load_table(f)
     if table.empty:
@@ -260,6 +403,9 @@ events that have a usable location, groups them into mission categories, and plo
 **How to read it.** Each dot is one machine-coded news event. Dot size is the number of distinct news
 sources; one-source events are common and should be verified before briefing. Click a dot for the
 actors, event type and a link to the source article.
+
+**Alerts and Trend.** The Alerts tab ranks countries whose event count for a category is far above its
+normal level; the Trend tab charts the last 30 days for one country and category.
 
 **Limits.**
 - GDELT is automatic, so it contains duplicates, wrong places and misread articles.
@@ -335,7 +481,13 @@ def main():
             here = points.loc[points["global_event_id"] == selected, "n_events"]
             render_detail(selected, int(here.iloc[0]) if len(here) else 1)
 
-    events_tab, about_tab = st.tabs(["Events table", "About"])
+    alerts_tab, trend_tab, events_tab, about_tab = st.tabs(
+        ["Alerts", "Trend", "Events table", "About"]
+    )
+    with alerts_tab:
+        render_alerts(chosen, picked_countries)
+    with trend_tab:
+        render_trend([code for code, _ in countries])
     with events_tab:
         render_table(f)
     with about_tab:

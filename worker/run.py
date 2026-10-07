@@ -1,11 +1,13 @@
-"""Long-running worker: ingest GDELT every 15 minutes. Spikes and retention are added in week 2."""
+"""Long-running worker: every 15 minutes ingest GDELT and refresh spikes. (Retention comes later.)"""
 
 import logging
 import time
+from datetime import UTC, datetime, timedelta
 
 from tripwire.backfill import backfill
 from tripwire.db import connect, migrate
 from tripwire.ingest import run_cycle
+from tripwire.spikes import run as run_spikes
 
 log = logging.getLogger("worker")
 
@@ -13,11 +15,19 @@ POLL_SECONDS = 15 * 60
 CATCH_UP_DAYS = 1  # re-check the last day so a laptop sleep or outage leaves no gaps
 
 
-def tick(conn, fetch=None) -> None:
+def tick(conn, fetch=None, delay=0.5) -> None:
     """One pass: fill any recent gaps (already-done files cost no download), then the newest file."""
     kwargs = {"fetch": fetch} if fetch else {}
-    backfill(conn, days=CATCH_UP_DAYS, **kwargs)
+    backfill(conn, days=CATCH_UP_DAYS, delay=delay, **kwargs)
     run_cycle(conn, **kwargs)
+    # Yesterday (now complete) and today (partial, so its score can only rise). A spike failure
+    # must never stop ingestion, so it gets its own try/except.
+    try:
+        today = datetime.now(UTC).date()
+        for day in (today - timedelta(days=1), today):
+            run_spikes(conn, day)
+    except Exception:
+        log.exception("spike detection failed")
 
 
 def main() -> None:

@@ -25,7 +25,9 @@ KEYS = ["country_code", "category"]
 SPIKE_COLUMNS = ["country_code", "category", "day", "count", "baseline_median", "baseline_mad", "z"]
 
 
-def daily_counts(conn, start: date, end: date) -> pd.DataFrame:
+def daily_counts(
+    conn, start: date, end: date, country: str | None = None, category: str | None = None
+) -> pd.DataFrame:
     """Events per day x country x category (mission categories only). Days with none are absent."""
     rows = conn.execute(
         """
@@ -34,11 +36,23 @@ def daily_counts(conn, start: date, end: date) -> pd.DataFrame:
         WHERE event_date BETWEEN %s AND %s
           AND country_code IS NOT NULL
           AND category = ANY(%s)
+          AND (%s::text IS NULL OR country_code = %s)
+          AND (%s::text IS NULL OR category = %s)
         GROUP BY 1, 2, 3
         """,
-        (start, end, DEFAULT_VISIBLE),
+        (start, end, DEFAULT_VISIBLE, country, country, category, category),
     ).fetchall()
     return pd.DataFrame(rows, columns=["day", *KEYS, "count"])
+
+
+def _scale(median, mad):
+    """Spread used to turn 'count minus typical' into a score (shared by detect and trend).
+
+    Normally 1.4826 * MAD. MAD = 0 means more than half the days equal the median (typical for
+    quiet places), so that would divide by zero; fall back to a Poisson-style spread, where the
+    variance equals the mean.
+    """
+    return np.where(mad > 0, MAD_TO_SIGMA * mad, np.sqrt(np.maximum(median, 1)))
 
 
 def detect(
@@ -74,10 +88,7 @@ def detect(
     median = np.median(values, axis=0)
     mad = np.median(np.abs(values - median), axis=0)
 
-    # MAD = 0 means more than half the days equal the median (typical for quiet places), so the
-    # normal formula would divide by zero. Fall back to a Poisson-style spread: variance = mean.
-    scale = np.where(mad > 0, MAD_TO_SIGMA * mad, np.sqrt(np.maximum(median, 1)))
-    z = (today.to_numpy(dtype=float) - median) / scale
+    z = (today.to_numpy(dtype=float) - median) / _scale(median, mad)
 
     out = today.reset_index()
     out["day"] = day.date()
@@ -86,6 +97,49 @@ def detect(
     out["z"] = z
     out = out[out["z"] >= z_threshold]
     return out[SPIKE_COLUMNS].sort_values("z", ascending=False).reset_index(drop=True)
+
+
+def trend(
+    counts: pd.DataFrame,
+    end: date,
+    days: int = 30,
+    z_threshold: float = 3.0,
+    min_count: int = 10,
+    window: int = WINDOW_DAYS,
+) -> pd.DataFrame:
+    """Daily series for ONE country x category, for the trend chart. Pure: no database.
+
+    One row per day for the last `days` days ending at `end`: the count, the typical day
+    (median of the previous `window` days), the flag threshold (the count that would score
+    exactly `z_threshold`), and whether the day was flagged. Same formula as detect(), so the
+    chart can never disagree with the alert list.
+    """
+    end = pd.Timestamp(end)
+    first = end - pd.Timedelta(days=days - 1 + window)
+    series = (
+        counts.assign(day=pd.to_datetime(counts["day"]))
+        .groupby("day")["count"]
+        .sum()
+        .reindex(pd.date_range(first, end), fill_value=0)  # no events that day = 0, not missing
+        .to_numpy(dtype=float)
+    )
+    rows = []
+    for i in range(window, len(series)):
+        base = series[i - window : i]  # the `window` days before day i; day i never judges itself
+        median = float(np.median(base))
+        mad = float(np.median(np.abs(base - median)))
+        scale = float(_scale(median, mad))
+        count = series[i]
+        rows.append(
+            {
+                "day": first + pd.Timedelta(days=i),
+                "count": int(count),
+                "typical": median,
+                "threshold": median + z_threshold * scale,
+                "flagged": bool(count >= min_count and (count - median) / scale >= z_threshold),
+            }
+        )
+    return pd.DataFrame(rows, columns=["day", "count", "typical", "threshold", "flagged"])
 
 
 def has_full_baseline(conn, day: date, window: int = WINDOW_DAYS) -> bool:

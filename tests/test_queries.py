@@ -161,3 +161,22 @@ def test_times_are_utc_even_if_the_session_is_not(conn):
     conn.execute("SET TIME ZONE 'America/New_York'")
     added = queries.map_events(conn, Filters(24, ALL)).iloc[0]["added"]
     assert added == expected  # still the UTC wall-clock time, not New York time
+
+
+def test_spike_days_and_alerts(conn):
+    for day, cc, z in [
+        ("2026-10-01", "UP", 5.0),
+        ("2026-10-02", "UP", 4.0),
+        ("2026-10-02", "IS", 9.0),
+    ]:
+        conn.execute(
+            "INSERT INTO spikes (country_code, category, day, count, baseline_median, baseline_mad, z)"
+            " VALUES (%s, 'Armed conflict', %s, 20, 2, 1, %s)",
+            (cc, day, z),
+        )
+    conn.commit()
+    days = queries.spike_days(conn)
+    assert [str(d) for d in days] == ["2026-10-02", "2026-10-01"]  # newest first
+    alerts = queries.spike_alerts(conn, days[0])
+    assert list(alerts["country_code"]) == ["IS", "UP"]  # highest score first
+    assert queries.spike_alerts(conn, "2026-09-01").empty

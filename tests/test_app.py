@@ -125,6 +125,65 @@ def test_no_matching_events_message(conn, app_env):
     assert "No events match these filters. Try a longer window or fewer filters." in infos
 
 
+def add_spike(conn, cc, category, count, z, mad=1.0, day="today"):
+    conn.execute(
+        "INSERT INTO spikes (country_code, category, day, count, baseline_median, baseline_mad, z)"
+        " VALUES (%s, %s, CASE WHEN %s = 'today' THEN current_date ELSE %s::date END, %s, 2, %s, %s)",
+        (cc, category, day, day, count, mad, z),
+    )
+    conn.commit()
+
+
+def alerts_table(at):
+    return next(d.value for d in at.dataframe if "Score" in d.value.columns)
+
+
+def test_alerts_tab_lists_spikes_highest_score_first(conn, app_env):
+    add(conn, 1)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=6.0)
+    add_spike(conn, "IS", "Protest & unrest", count=12, z=9.5, mad=0.0)
+    at = run_app()
+    assert not at.exception
+    table = alerts_table(at)
+    assert list(table["Country"]) == ["Israel", "Ukraine"]
+    assert list(table["Rule"]) == ["quiet baseline", "normal"]
+    assert list(table["Score"]) == [9.5, 6.0]
+
+
+def test_alerts_can_be_ranked_by_event_count(conn, app_env):
+    add(conn, 1)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=6.0)
+    add_spike(conn, "IS", "Protest & unrest", count=12, z=9.5)
+    at = run_app()
+    at.radio[0].set_value("Event count").run()
+    assert list(alerts_table(at)["Country"]) == ["Ukraine", "Israel"]
+
+
+def test_alerts_follow_the_sidebar_filters(conn, app_env):
+    add(conn, 1)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=6.0)
+    add_spike(conn, "IS", "Protest & unrest", count=12, z=9.5)
+    at = run_app()
+    widget(at, "multiselect", "Countries").set_value(["UP"]).run()
+    assert list(alerts_table(at)["Country"]) == ["Ukraine"]
+
+
+def test_no_spikes_yet_message(conn, app_env):
+    add(conn, 1)
+    at = run_app()
+    assert any("No spikes yet" in i.value for i in at.info)
+
+
+def test_trend_tab_renders_for_the_busiest_country(conn, app_env):
+    add(conn, 1)
+    at = run_app()
+    assert not at.exception
+    assert [s.label for s in at.selectbox if s.label in ("Country", "Category")] == [
+        "Country",
+        "Category",
+    ]
+
+
 # ---- helpers imported from the page ------------------------------------------------------------
 
 

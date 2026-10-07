@@ -94,3 +94,10 @@
   - Detail text is plain `st.text` lines that wrap; the footer is regular text, not a faint caption.
 - **Not fixed (judged not worth it now):** a country spanning the antimeridian opens zoomed out (known limit); tie-breaking in the ordering is already deterministic after grouping.
 - **Process note:** review agents are expensive. After this one hit the session limit, remaining checks were done by hand.
+
+## 2026-10-07: Alerts and Trend tabs
+- **Decision:** the Alerts tab reads stored spikes (`spikes` table) for one UTC day, ranked by Score by default with a "Rank by event count" switch; it follows the sidebar category and country filters. Selecting a row pre-fills the Trend tab's country and category pickers (only on a new click, so the pickers still work afterwards).
+- **Trend chart** uses `spikes.trend()`, which shares the scale formula with `detect()` (`_scale`) and has a test that both flag the same days, so the chart can't disagree with the alert list. Chart shows events per day, a grey band from the typical day to the flag threshold, orange diamonds on flagged days, plus a "Show the numbers" table (colour is never the only cue).
+- **Worker now refreshes spikes** for yesterday and today every pass, in its own try/except so a spike error can never stop ingestion.
+- **Known weakness:** with the floor at 10 events, a place that goes from 0 to 11 scores 11-14 and tops a Score ranking above much larger real surges (Israel armed conflict: 362 vs typical 212 scores 3.8). This is why there is a count ranking. The S3 spot-check should decide whether to raise the floor or rank by a blend.
+- **Today is partial,** so its score can only rise; the day picker labels it "(so far today)".

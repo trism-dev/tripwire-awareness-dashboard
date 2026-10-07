@@ -110,3 +110,25 @@ def event_detail(conn: psycopg.Connection, event_id: int) -> dict | None:
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute("SELECT * FROM events WHERE global_event_id = %s", (event_id,))
         return cur.fetchone()
+
+
+def spike_days(conn: psycopg.Connection, limit: int = 7) -> list:
+    """Days that have stored spikes, newest first."""
+    rows = conn.execute("SELECT DISTINCT day FROM spikes ORDER BY day DESC LIMIT %s", (limit,))
+    return [r[0] for r in rows.fetchall()]
+
+
+def spike_alerts(conn: psycopg.Connection, day) -> pd.DataFrame:
+    """The spikes stored for one day, highest score first, with the numbers behind each one."""
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT country_code, category, count, baseline_median, baseline_mad, z
+            FROM spikes WHERE day = %s ORDER BY z DESC, country_code, category
+            """,
+            (day,),
+        )
+        return pd.DataFrame(
+            cur.fetchall(),
+            columns=["country_code", "category", "count", "baseline_median", "baseline_mad", "z"],
+        )
