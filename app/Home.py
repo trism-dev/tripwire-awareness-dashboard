@@ -23,6 +23,7 @@ from tripwire.gdelt import categories as cat
 from tripwire.gdelt.cameo import event_description
 from tripwire.mapview import fit_view
 from tripwire.queries import Filters
+from tripwire.web import safe_url
 
 REPO_URL = "https://github.com/trism-dev/tripwire-awareness-dashboard"
 GDELT_URL = "https://www.gdeltproject.org/"
@@ -55,11 +56,6 @@ def is_dark() -> bool:
 
 def rgb(hex_color: str) -> list[int]:
     return [int(hex_color[i : i + 2], 16) for i in (1, 3, 5)]
-
-
-def safe_url(url) -> str | None:
-    """GDELT URLs are untrusted input: only ever link http(s), never javascript: and the like."""
-    return url if isinstance(url, str) and url.startswith(("http://", "https://")) else None
 
 
 def one_decimal(value) -> str:

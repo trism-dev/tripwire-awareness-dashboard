@@ -108,3 +108,10 @@
 - **Why:** the S3 backtest showed 40% of spikes rested on fewer than 10 distinct articles and the median spike had about 2 rows per article. After the change, 502 spikes became 298 and the three suspected duplicate-article spikes in the sample disappeared.
 - **Cost:** a few small genuine spikes drop out (e.g. Pakistan protests at 10 articles). "Events in view" and the map still count event rows; only spike detection changed.
 - **Open:** a clean version-B accuracy figure needs a fresh spot-check sample.
+
+## 2026-10-08: Labeling page design (S2)
+- **Queue:** events from the last 30 days in the five mission categories, categories taking turns, inside each a fixed shuffle (`md5(id || seed)`). Repeatable, balanced, and needs no new table. Skips live in the browser session only (a skipped event can return after a reload).
+- **Hidden from the labeler:** number of sources, tone, Goldstein score, articles, mentions. They are classifier inputs; seeing them would make labels echo the model's own features.
+- **Label meaning:** 1 = the article shows a real event of about the coded type at roughly the coded place; 0 = wrong type, wrong place, not an event, or an old event rehashed (the S3 spot-check errors were all of this kind).
+- **Safety:** the page does nothing unless `ENABLE_LABELING=1`. There are no user accounts, so on a public host anyone could otherwise write labels. Do not set it on Railway.
+- **Shared helper:** `safe_url` moved to `tripwire/web.py` so Home and Label use the same link check.

@@ -24,6 +24,10 @@ port as the Docker one, so run `docker compose stop app` first.
 
 Other commands: `make ingest` (one cycle), `make spikes` (recompute spikes).
 
+**Labeling (local only):** open the *Label* page in the sidebar to hand-label events for the quality
+classifier. It writes to the database, so it only works when `ENABLE_LABELING=1` is set (on by default
+in `.env.example` and the local Docker app; leave it unset on any public host).
+
 ## Data
 
 Event data: [The GDELT Project](https://www.gdeltproject.org/). GDELT is free to use with attribution.

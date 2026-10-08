@@ -29,6 +29,7 @@ services:
     command: streamlit run app/Home.py --server.port 8501 --server.address 0.0.0.0 --server.headless true
     environment:
       DATABASE_URL: postgresql://tripwire:tripwire@db:5432/tripwire
+      ENABLE_LABELING: "1"  # local only: this page writes to the database
     ports:
       - "8501:8501"
     depends_on:
