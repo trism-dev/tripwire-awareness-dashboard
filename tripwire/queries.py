@@ -7,6 +7,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 MAP_LIMIT = 20_000  # most dots (places) the map will draw
+EXPORT_LIMIT = 100_000  # most events one CSV download will contain
 
 
 @dataclass(frozen=True)
@@ -137,3 +138,21 @@ def spike_alerts(conn: psycopg.Connection, day) -> pd.DataFrame:
             cur.fetchall(),
             columns=["country_code", "category", "count", "baseline_median", "baseline_mad", "z"],
         )
+
+
+def export_events(conn: psycopg.Connection, f: Filters, limit: int = EXPORT_LIMIT) -> pd.DataFrame:
+    """Every event in the current view (not grouped into dots), newest first, for the CSV."""
+    where, params = _where(f)
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            f"""
+            SELECT global_event_id, date_added, event_date, category, country_code, geo_fullname,
+                   lat, lon, actor1_name, actor1_country, actor2_name, actor2_country, event_code,
+                   num_sources, num_articles, goldstein, avg_tone, quality_score, source_url
+            FROM events WHERE {where}
+            ORDER BY date_added DESC, global_event_id LIMIT %s
+            """,
+            [*params, limit],
+        )
+        columns = [c.name for c in cur.description]  # keeps the headers even with no rows
+        return pd.DataFrame(cur.fetchall(), columns=columns)

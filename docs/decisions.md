@@ -130,3 +130,9 @@
 - **Why not for spikes:** experiment in `docs/evaluation.md`: filtering spike counts by quality kept 1 of 3 real spikes and 2-5 of 6 bad ones; no gain. Not worth the extra complexity or the loss of real alerts.
 - **Why off by default:** the model is modest (AUC about 0.71) and a default of 0.4 hides over half of all events; the analyst should opt in knowingly.
 - **Bug caught by tests:** the table's quality column crashed when every row in view was unscored (all-NULL column has object dtype), which would have hit users briefly after each ingest.
+
+## 2026-10-08: CSV export (S5) and retention
+- **CSV:** one row per event (not per map dot) for the current filters, newest first, capped at 100,000 rows. Built only when the button is clicked (a callable passed to `st.download_button`), so normal page loads don't pay for it. A 7-day view is about 47k rows / 15 MB, built in about 2 s. Includes readable country and event-type names plus the quality score; UTF-8 with a byte-order mark so Excel shows accents correctly.
+- **Formula injection:** GDELT text is untrusted and a spreadsheet treats a cell starting with `=`, `+`, `-` or `@` as a formula, so text columns get a leading apostrophe. Numeric columns (a negative Goldstein score) are left alone.
+- **Attribution:** carried in the file name (`tripwire-gdelt-events-...csv`) and the button help text; a CSV has no place for a footer.
+- **Retention:** every worker pass deletes events older than `RETENTION_DAYS` (60) that have no label, in batches of 20,000, and trims `ingest_files` to the same age. Labeled events are kept forever because they are the classifier's training data (this closes the risk logged on 2026-10-08). First run removes the roughly 7,500 events from the first backfill day.

@@ -5,9 +5,11 @@ import time
 from datetime import UTC, datetime, timedelta
 
 from tripwire.backfill import backfill
+from tripwire.config import load_settings
 from tripwire.db import connect, migrate
 from tripwire.ingest import run_cycle
 from tripwire.quality.score import load_artifact, score_missing
+from tripwire.retention import purge
 from tripwire.spikes import run as run_spikes
 
 log = logging.getLogger("worker")
@@ -37,6 +39,13 @@ def tick(conn, fetch=None, delay=0.5) -> None:
             score_missing(conn, model, max_rows=50_000)
     except Exception:
         log.exception("quality scoring failed")
+    # Old events are deleted, except hand-labeled ones. Cheap when there is nothing to delete.
+    try:
+        removed = purge(conn, load_settings().retention_days)
+        if removed:
+            log.info("retention removed %d old events", removed)
+    except Exception:
+        log.exception("retention failed")
 
 
 def main() -> None:

@@ -18,6 +18,7 @@ import streamlit as st
 from tripwire import queries, spikes
 from tripwire.config import load_settings
 from tripwire.db import connect
+from tripwire.export import events_csv
 from tripwire.fips import country_name
 from tripwire.gdelt import categories as cat
 from tripwire.gdelt.cameo import event_description
@@ -114,6 +115,12 @@ def load_view(f: Filters):
 def load_table(f: Filters):
     with connect() as conn:
         return queries.table_events(conn, f)
+
+
+def load_export(f: Filters):
+    """Not cached: it runs once per click on the download button."""
+    with connect() as conn:
+        return queries.export_events(conn, f)
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -381,7 +388,15 @@ def render_table(f: Filters):
     if table.empty:
         st.info("No events match these filters.")
         return
-    st.caption(f"The {len(table):,} best-sourced events in view.")
+    st.download_button(
+        "Download CSV of this view",
+        data=lambda: events_csv(load_export(f)),  # built only when clicked
+        file_name=f"tripwire-gdelt-events-{datetime.now(UTC):%Y%m%d-%H%M}.csv",
+        mime="text/csv",
+        help=f"Up to {queries.EXPORT_LIMIT:,} events matching the current filters, one row per event. "
+        "Data: The GDELT Project (gdeltproject.org).",
+    )
+    st.caption(f"The table shows the {len(table):,} best-sourced events in view.")
     out = pd.DataFrame(
         {
             "When (UTC)": table["date_added"].dt.strftime("%Y-%m-%d %H:%M"),
