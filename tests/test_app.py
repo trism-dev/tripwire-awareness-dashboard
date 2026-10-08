@@ -8,7 +8,7 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from app.Home import age_text, prepare_points, safe_url
+from app.Home import age_text, prepare_points, quality_text, safe_url
 from tests.test_queries import add
 
 APP = str(Path(__file__).resolve().parent.parent / "app" / "Home.py")
@@ -184,6 +184,17 @@ def test_trend_tab_renders_for_the_busiest_country(conn, app_env):
     ]
 
 
+def test_hide_low_quality_toggle(conn, app_env):
+    add(conn, 1, quality=0.85)
+    add(conn, 2, quality=0.1)
+    at = run_app()
+    assert metrics(at)["Events in view"] == "2"
+    widget(at, "checkbox", "Hide low-quality events").check().run()
+    assert metrics(at)["Events in view"] == "1"  # default minimum 0.4 hides the 0.1 event
+    widget(at, "slider", "Minimum quality score").set_value(0.9).run()
+    assert metrics(at)["Events in view"] == "0"  # 0.9 is the slider's top: now 0.85 is hidden too
+
+
 # ---- helpers imported from the page ------------------------------------------------------------
 
 
@@ -217,3 +228,10 @@ def test_prepare_points_size_colour_and_draw_order():
     assert list(light.iloc[0]["color"][:3]) != list(
         prepare_points(pts, dark=True).iloc[0]["color"][:3]
     )
+
+
+def test_quality_text_wording():
+    assert quality_text(None) == "not scored yet"
+    assert "likely credible" in quality_text(0.8)
+    assert "uncertain" in quality_text(0.5)
+    assert "likely not credible" in quality_text(0.1)

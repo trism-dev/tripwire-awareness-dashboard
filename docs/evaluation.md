@@ -219,3 +219,18 @@ Read with care: with 218 training rows these are not stable. `log_sources` is ne
 - "Other conflict" events are scored too, but that category had no labels, so those scores are extrapolated.
 - After adding labels, rerun `make train` and `python -m tripwire.quality.score --all`. The saved model is refitted on all labels, so it has seen the test rows; the numbers above come from the train-split model and are the ones to quote.
 - A labeling pass that deliberately over-samples multi-source events (about 40 would do) is the cheapest way to test whether sources help; the current queue cannot target them.
+
+## Does the quality score fix the spike errors? (experiment, not adopted)
+
+**Question.** The spike spot-check failed mostly because of misread event types. Would counting only articles above a minimum quality score fix that?
+
+**Method.** Recompute each of the 10 hand-judged spikes (and the whole 32-day backtest) counting only articles scoring at or above a threshold, baseline included, then see which spikes are still flagged.
+
+| Minimum quality | Yes kept (of 3) | No kept (of 6) | Unclear kept (of 1) | Spikes in the 32-day backtest |
+|---|---|---|---|---|
+| none (current) | 3 | 6 | 1 | 298 |
+| 0.3 | 1 | 5 | 0 | 248 |
+| 0.4 | 1 | 4 | 0 | 226 |
+| 0.5 | 1 | 2 | 0 | 167 |
+
+**Result: no improvement.** The filter removes misreads (Romania drops at 0.3) but also removes two of the three real spikes (Oman, West Bank), so the share of surviving spikes that were real stays near one in three at best. The model is too weak to tell real from misread events at the level a spike count needs. Only 10 judged spikes, so this is indicative, not conclusive. The quality score is therefore used for browsing (filter, detail, table), not for spike detection. The same labeled events may overlap with these spikes, which would flatter the model, not hurt it.

@@ -17,16 +17,27 @@ def add(
     hours_ago=0.1,
     lat=None,
     place="Somewhere",
+    quality=None,
 ):
     """Insert one event. By default every event gets its own spot (lat = eid)."""
     conn.execute(
         """
         INSERT INTO events (global_event_id, event_date, date_added, country_code, category,
-                            num_sources, geo_type, lat, lon, geo_fullname, source_url)
+                            num_sources, geo_type, lat, lon, geo_fullname, source_url, quality_score)
         VALUES (%s, current_date, now() - make_interval(secs => %s), %s, %s, %s, %s,
-                %s, 20.5, %s, 'https://example.com/a')
+                %s, 20.5, %s, 'https://example.com/a', %s)
         """,
-        (eid, hours_ago * 3600, country, category, sources, geo_type, lat or float(eid), place),
+        (
+            eid,
+            hours_ago * 3600,
+            country,
+            category,
+            sources,
+            geo_type,
+            lat or float(eid),
+            place,
+            quality,
+        ),
     )
     conn.commit()
 
@@ -180,3 +191,23 @@ def test_spike_days_and_alerts(conn):
     alerts = queries.spike_alerts(conn, days[0])
     assert list(alerts["country_code"]) == ["IS", "UP"]  # highest score first
     assert queries.spike_alerts(conn, "2026-09-01").empty
+
+
+def test_quality_filter_hides_low_scores_but_keeps_unscored(conn):
+    add(conn, 1, quality=0.9)
+    add(conn, 2, quality=0.2)
+    add(conn, 3, quality=None)  # not scored yet: we cannot call it low quality
+    assert ids(queries.map_events(conn, Filters(24, ALL))) == {1, 2, 3}  # off by default
+    assert ids(queries.map_events(conn, Filters(24, ALL, min_quality=0.5))) == {1, 3}
+    assert ids(queries.map_events(conn, Filters(24, ALL, min_quality=0.2))) == {
+        1,
+        2,
+        3,
+    }  # inclusive
+    assert queries.category_counts(conn, Filters(24, ALL, min_quality=0.5)) == {"Armed conflict": 2}
+
+
+def test_table_includes_the_quality_score(conn):
+    add(conn, 1, quality=0.77)
+    table = queries.table_events(conn, Filters(24, ALL))
+    assert round(float(table.iloc[0]["quality_score"]), 2) == 0.77

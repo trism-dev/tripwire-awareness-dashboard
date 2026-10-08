@@ -62,6 +62,20 @@ def one_decimal(value) -> str:
     return "not given" if value is None else f"{value:.1f}"
 
 
+def quality_text(score) -> str:
+    """The model's estimate that a record is credible, in words a briefer can use."""
+    if score is None:
+        return "not scored yet"
+    label = (
+        "likely credible"
+        if score >= 0.6
+        else "uncertain"
+        if score >= 0.35
+        else "likely not credible"
+    )
+    return f"{score:.2f} ({label}; a rough model estimate)"
+
+
 def minutes_ago(ts) -> int:
     return int((datetime.now(UTC) - ts).total_seconds() // 60)
 
@@ -230,6 +244,7 @@ def render_detail(event_id: int | None, n_here: int = 1):
         "Actor 2": f"{e['actor2_name'] or 'unspecified'} ({e['actor2_country'] or '-'})",
         "Event date": str(e["event_date"]),
         "Reported (UTC)": e["date_added"].strftime("%Y-%m-%d %H:%M"),
+        "Quality score": quality_text(e["quality_score"]),
         "Sources": str(e["num_sources"]),
         "Articles / mentions": f"{e['num_articles']} / {e['num_mentions']}",
         "Goldstein": f"{one_decimal(e['goldstein'])} (-10 conflict to +10 cooperation)",
@@ -379,6 +394,9 @@ def render_table(f: Filters):
             "Sources": table["num_sources"],
             "Goldstein": table["goldstein"],
             "Tone": table["avg_tone"],
+            "Quality": pd.to_numeric(table["quality_score"]).round(
+                2
+            ),  # all-NULL column is object dtype
             "Source": table["source_url"].map(safe_url),
         }
     )
@@ -402,6 +420,11 @@ actors, event type and a link to the source article.
 
 **Alerts and Trend.** The Alerts tab ranks countries whose event count for a category is far above its
 normal level; the Trend tab charts the last 30 days for one country and category.
+
+**Quality score.** A simple model, trained on 300+ hand-labeled events, estimates how likely each
+record is a real event of the coded type at roughly the coded place. It is modest (about 70% on a
+ranking measure where 50% is guessing), so use it to put cleaner events first, not to decide what
+is true.
 
 **Limits.**
 - GDELT is automatic, so it contains duplicates, wrong places and misread articles.
@@ -453,8 +476,30 @@ def main():
             1,
             help="Events reported by more sources are more likely real.",
         )
+        hide_low = st.checkbox(
+            "Hide low-quality events",
+            help="Hides events a model rates as unlikely to be a real event of the coded type at "
+            "roughly the coded place. The model is modest (see the About tab): it ranks events, "
+            "it does not decide what is true.",
+        )
+        min_quality = 0.0
+        if hide_low:
+            min_quality = st.slider(
+                "Minimum quality score",
+                0.1,
+                0.9,
+                0.4,
+                0.05,
+                help="Estimated chance the record is credible. Higher hides more.",
+            )
 
-    f = Filters(WINDOWS[window], tuple(chosen), tuple(picked_countries), min_sources)
+    f = Filters(
+        WINDOWS[window],
+        tuple(chosen),
+        tuple(picked_countries),
+        min_sources,
+        min_quality=min_quality,
+    )
     counts, points = load_view(f)
 
     render_header(latest, counts, len(points))

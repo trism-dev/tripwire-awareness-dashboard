@@ -124,3 +124,9 @@
 - **The model file is committed** (150 KB, mostly the news-site frequency table) because the hosted worker needs it; `.gitignore` no longer excludes `models/*.joblib`.
 - **Not done on purpose:** no extra features beyond the PRD list (222 labels cannot support more), no gradient-boosted comparison (stretch item), no threshold tuning (would need more data than the test set holds).
 - **Open risk:** labeled events can be deleted by a future retention job (`labels` cascades from `events`). Retention must skip labeled events, or the training data disappears.
+
+## 2026-10-08: Quality score used for browsing, not for spike detection
+- **Decision:** the map and events table get a "Hide low-quality events" toggle (minimum score slider, default 0.4, off by default; unscored events are kept) and the detail panel and table show the score. Spike detection does NOT use the score.
+- **Why not for spikes:** experiment in `docs/evaluation.md`: filtering spike counts by quality kept 1 of 3 real spikes and 2-5 of 6 bad ones; no gain. Not worth the extra complexity or the loss of real alerts.
+- **Why off by default:** the model is modest (AUC about 0.71) and a default of 0.4 hides over half of all events; the analyst should opt in knowingly.
+- **Bug caught by tests:** the table's quality column crashed when every row in view was unscored (all-NULL column has object dtype), which would have hit users briefly after each ingest.

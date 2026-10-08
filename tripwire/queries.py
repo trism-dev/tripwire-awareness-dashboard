@@ -18,6 +18,7 @@ class Filters:
     countries: tuple[str, ...] = ()  # FIPS codes; empty means all countries
     min_sources: int = 1
     min_geo_type: int = 2  # 1 = country centroid only, hidden from the map by default (PRD 5.2)
+    min_quality: float = 0.0  # 0 = no quality filter; otherwise hide events scoring below this
 
 
 def _where(f: Filters) -> tuple[str, list]:
@@ -31,6 +32,10 @@ def _where(f: Filters) -> tuple[str, list]:
     if f.countries:
         clauses.append("country_code = ANY(%s)")
         params.append(list(f.countries))
+    if f.min_quality > 0:
+        # an event the model has not scored yet is kept: we cannot call it low quality
+        clauses.append("(quality_score IS NULL OR quality_score >= %s)")
+        params.append(f.min_quality)
     return " AND ".join(clauses), params
 
 
@@ -96,7 +101,7 @@ def table_events(conn: psycopg.Connection, f: Filters, limit: int = 500) -> pd.D
         cur.execute(
             f"""
             SELECT date_added, category, country_code, geo_fullname, actor1_name, actor2_name,
-                   event_code, num_sources, goldstein, avg_tone, source_url
+                   event_code, num_sources, goldstein, avg_tone, quality_score, source_url
             FROM events WHERE {where}
             ORDER BY num_sources DESC, date_added DESC LIMIT %s
             """,

@@ -26,7 +26,11 @@ SPIKE_COLUMNS = ["country_code", "category", "day", "count", "baseline_median", 
 
 
 def daily_counts(
-    conn, start: date, end: date, country: str | None = None, category: str | None = None
+    conn,
+    start: date,
+    end: date,
+    country: str | None = None,
+    category: str | None = None,
 ) -> pd.DataFrame:
     """Distinct source ARTICLES per day x country x category (mission categories only).
 
@@ -46,7 +50,15 @@ def daily_counts(
           AND (%s::text IS NULL OR category = %s)
         GROUP BY 1, 2, 3
         """,
-        (start, end, DEFAULT_VISIBLE, country, country, category, category),
+        (
+            start,
+            end,
+            DEFAULT_VISIBLE,
+            country,
+            country,
+            category,
+            category,
+        ),
     ).fetchall()
     return pd.DataFrame(rows, columns=["day", *KEYS, "count"])
 
