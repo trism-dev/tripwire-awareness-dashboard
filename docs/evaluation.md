@@ -41,82 +41,112 @@ What version B does to the 10 sampled version-A spikes below (5 of 10 stay flagg
 
 Reading it: the three spikes I suspected were duplicate or misread single articles (Tunisia, Mozambique, Argentina) all drop out, and the large real-looking ones (Ethiopia, France, Pakistan mosque bombing) stay. The cost: borderline cases also drop, such as Pakistan protests (10 articles vs a typical 4.5, which URLs suggested were real) and Greenland. Fewer, more trustworthy alerts, at the price of missing a few small genuine ones. The share of spikes with under 20 articles went up because the big inflated ones shrank into that range. The verdicts below were drawn from version A, so they test version A; a clean accuracy figure for version B needs a fresh sample from the B alerts (same method, new seed) once the A check is done.
 
-**Spot-check (target: at least 7 of 10 match a real, reported change).** Sample drawn from version A with seed 42, stratified: 4 from the top third by score, 3 from the middle, 3 from the bottom, so weak alerts are tested too, not just the headline ones. Open the links for each spike and decide: do the articles describe a real increase in this kind of event in this country on this day? Put Yes / No / Unclear in the Verdict column.
+**Spot-check (target: at least 7 of 10 match a real, reported change).** Sample drawn from the live version B alerts with seed 42, stratified: 4 from the top third by score, 3 from the middle, 3 from the bottom, so weak alerts are tested too. For each spike, open the links and answer one question: *do these articles describe a real increase in this kind of event in this country on this day?* Yes = at least 2 of the 3 articles show a real event of the right type in the right country; No = the articles are about something else (misread, wrong place, wrong type, not an event); Unclear = you cannot tell. Only the best-sourced 3 articles are shown, so judge the event type and place, not the exact count.
 
-| # | Stratum | Day (UTC) | Country | Category | Events | Typical day | Score | Verdict | Note |
+| # | Stratum | Day (UTC) | Country | Category | Articles | Typical day | Score | Verdict | Note |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | top third by score | 2026-09-25 | Ethiopia (ET) | Armed conflict | 120 | 2.5 | 31.7 |  |  |
-| 2 | top third by score | 2026-09-18 | Tunisia (TS) | Armed conflict | 17 | 0.0 | 17.0 |  |  |
-| 3 | top third by score | 2026-10-06 | France (FR) | Protest & unrest | 53 | 4.0 | 11.0 |  |  |
-| 4 | top third by score | 2026-09-18 | Greenland (GL) | Threats & coercion | 11 | 1.0 | 6.7 |  |  |
-| 5 | middle third | 2026-09-14 | Mozambique (MZ) | Armed conflict | 10 | 1.0 | 6.1 |  |  |
-| 6 | middle third | 2026-09-14 | Poland (PL) | Armed conflict | 22 | 5.0 | 5.7 |  |  |
-| 7 | middle third | 2026-09-10 | Romania (RO) | Armed conflict | 30 | 5.0 | 5.6 |  |  |
-| 8 | bottom third | 2026-09-18 | Pakistan (PK) | Armed conflict | 214 | 81.0 | 3.8 |  |  |
-| 9 | bottom third | 2026-09-30 | Argentina (AR) | Armed conflict | 17 | 3.0 | 3.8 |  |  |
-| 10 | bottom third | 2026-09-24 | Pakistan (PK) | Protest & unrest | 19 | 7.5 | 3.1 |  |  |
+| 1 | top third by score | 2026-09-16 | Kosovo (KV) | Threats & coercion | 22 | 0.0 | 22.0 |  |  |
+| 2 | top third by score | 2026-09-21 | Rwanda (RW) | Armed conflict | 11 | 0.5 | 14.2 |  |  |
+| 3 | top third by score | 2026-10-06 | Romania (RO) | Armed conflict | 12 | 2.0 | 6.7 |  |  |
+| 4 | top third by score | 2026-09-14 | Djibouti (DJ) | Threats & coercion | 10 | 1.0 | 6.1 |  |  |
+| 5 | middle third | 2026-10-01 | Egypt (EG) | Armed conflict | 20 | 5.0 | 5.1 |  |  |
+| 6 | middle third | 2026-09-10 | Yemen (YM) | Threats & coercion | 18 | 3.0 | 5.1 |  |  |
+| 7 | middle third | 2026-09-12 | Saudi Arabia (SA) | Threats & coercion | 29 | 7.0 | 4.9 |  |  |
+| 8 | bottom third | 2026-09-11 | Yemen (YM) | Armed conflict | 60 | 12.5 | 3.8 |  |  |
+| 9 | bottom third | 2026-09-23 | Oman (MU) | Armed conflict | 13 | 2.0 | 3.7 |  |  |
+| 10 | bottom third | 2026-09-29 | West Bank (WE) | Armed conflict | 30 | 12.0 | 3.0 |  |  |
 
-### Evidence links (best-sourced events behind each spike)
+### Evidence links (version B sample)
 
-**1. Ethiopia, Armed conflict, 2026-09-25** (120 events, typical 2.5)
+**1. Kosovo - Threats & coercion - 2026-09-16**  (22 articles that day; a typical day is 0.0; score 22.0)
 
-- Occupy territory | REBEL -> ? | Tigray, Tigray, Ethiopia | 2 source(s) | https://www.arabnews.com/world/heavy-fighting-internet-disruption-as-ethiopia-conflict-rages-3003067
-- Occupy territory | REBEL -> ETHIOPIA | Tigray, Tigray, Ethiopia | 2 source(s) | https://www.arabnews.com/world/heavy-fighting-internet-disruption-as-ethiopia-conflict-rages-3003067
-- Use conventional military force, not specified below | ETHIOPIA -> GOVERNMENT | Amhara, Amara, Ethiopia | 2 source(s) | https://keyt.com/news/national-world/cnn-world/2026/09/25/war-has-returned-to-ethiopias-tigray-and-former-enemies-are-now-fighting-together-what-changed/
+- https://balkaninsight.com/2026/09/16/hague-court-convicts-kosovo-liberation-army-leaders-of-war-crimes/btj/
+  coded as: Arrest, detain, or charge with legal action | LIBERATION ARMY -> ? | Kosovo | 1 source(s)
+- https://balkaninsight.com/2026/09/16/kosovo-slams-unjust-conviction-of-hashim-thaci-serbian-minister-applauds/btj/
+  coded as: Arrest, detain, or charge with legal action | CRIMINAL -> ? | Kosovo | 1 source(s)
+- https://cyprus-mail.com/2026/09/16/former-kosovo-president-thaci-sentenced-to-25-years-in-prison-for-war-crimes
+  coded as: Arrest, detain, or charge with legal action | PRESIDENT -> PRISON | Kosovo | 1 source(s)
 
-**2. Tunisia, Armed conflict, 2026-09-18** (17 events, typical 0.0)
+**2. Rwanda - Armed conflict - 2026-09-21**  (11 articles that day; a typical day is 0.5; score 14.2)
 
-- Fight with small arms and light weapons | FRANCE -> PIRATE | Tunisia | 1 source(s) | https://www.thisdaylive.com/2026/09/18/a-man-for-all-seasons-2/
-- Fight with small arms and light weapons | FRANCE -> PIRATE | Tunisia | 1 source(s) | https://www.thisdaylive.com/2026/09/18/a-man-for-all-seasons-2/
-- Fight with small arms and light weapons | FRANCE -> PIRATE | Tunisia | 1 source(s) | https://www.thisdaylive.com/2026/09/18/a-man-for-all-seasons-2/
+- https://allafrica.com/stories/202609210001.html
+  coded as: Physically assault, not specified below | RWANDA -> ? | Rubaya, Nord, Rwanda | 1 source(s)
+- https://bdnews24.com/world/qstqxyzkx3
+  coded as: Use conventional military force, not specified below | KIGALI -> BRITAIN | Kigali, (RW09), Rwanda | 1 source(s)
+- https://brudirect.com/post/First-UK-charges-brought-over-1994-Rwanda-genocide
+  coded as: Use conventional military force, not specified below | RWANDA -> ? | Rugenge, Sud, Rwanda | 1 source(s)
 
-**3. France, Protest & unrest, 2026-10-06** (53 events, typical 4.0)
+**3. Romania - Armed conflict - 2026-10-06**  (12 articles that day; a typical day is 2.0; score 6.7)
 
-- Demonstrate or rally | FRANCE -> FRANCE | Paris, France (general), France | 6 source(s) | https://www.yourlocalguardian.co.uk/news/national/26610519.protesting-pupils-blockade-french-high-schools/
-- Protest violently, riot | SCHOOL -> FRENCH | Paris, France (general), France | 2 source(s) | http://www.parisguardian.com/news/279355252/french-police-clash-with-high-school-protesters-demanding-change
-- Demonstrate or rally | STUDENT -> ? | France | 1 source(s) | https://www.ncregister.com/cna/french-bishop-urges-peace-in-face-of-protest-violence
+- https://actmedia.eu/daily/cooperation-between-romanian-and-danish-prosecutors-in-murder-and-desecration-of-corpses-case/121962
+  coded as: Use conventional military force, not specified below | PROSECUTOR -> AUTHORITIES | Buzau, Buzau, Romania | 1 source(s)
+- https://business-review.eu/business/pharmaceuticals/catalina-urse-bayer-romania-must-reduce-the-gap-in-access-to-modern-therapies-301566
+  coded as: Use conventional military force, not specified below | ? -> INDUSTRY | Romania | 1 source(s)
+- https://krcgtv.com/news/nation-world/andrew-tate-accused-of-possessing-bestiality-porn-involving-horse-eel-report-animal-extreme-pornography-rape-sex-trafficking-sexual-exploitation-social-media-influencer
+  coded as: Sexually assault | ? -> UNITED KINGDOM | Romania | 1 source(s)
 
-**4. Greenland, Threats & coercion, 2026-09-18** (11 events, typical 1.0)
+**4. Djibouti - Threats & coercion - 2026-09-14**  (10 articles that day; a typical day is 1.0; score 6.1)
 
-- Threaten, not specified below | NATO -> GREENLAND | Greenland | 2 source(s) | https://www.timescall.com/2026/09/18/trump-greenland-deal/
-- Threaten, not specified below | NATO -> GREENLAND | Greenland | 2 source(s) | https://www.timescall.com/2026/09/18/trump-greenland-deal/
-- Impose curfew | GREENLAND -> ? | Greenland | 1 source(s) | https://scienceblog.com/sb-in-september-2017-a-research-team-aboard-the-icebreaker-polarstern-had-to-carefully-break-a-path-around-their-own-sea-floor-instrument-off-northeastern-greenland-after-the-sea-ice-had-quietly-clos/
+- https://www.clickorlando.com/news/world/2026/09/14/yemens-houthi-rebels-seize-more-key-islands-in-southern-red-sea-tighten-grip-on-shipping-routes/
+  coded as: Impose administrative sanctions, not specified below | YEMEN -> REBEL | Red Sea, Djibouti (general), Djibouti | 3 source(s)
+- https://morningstaronline.co.uk/article/yemen-houthi-led-forces-seize-more-key-islands-southern-red-sea
+  coded as: Arrest, detain, or charge with legal action | YEMEN -> DJIBOUTI | Bab El-Mandeb, , Djibouti | 1 source(s)
+- https://www.arabnews.com/saudi-arabia/saudi-arabia-issues-lifts-alerts-as-houthi-attacks-raise-security-fears-3001619
+  coded as: Threaten to use military force, not specified below | RIYADH -> YEMEN | Bab Al-Mandab, , Djibouti | 1 source(s)
 
-**5. Mozambique, Armed conflict, 2026-09-14** (10 events, typical 1.0)
+**5. Egypt - Armed conflict - 2026-10-01**  (20 articles that day; a typical day is 5.0; score 5.1)
 
-- Use conventional military force, not specified below | HUNTER -> MOZAMBIQUE | Zambezi, Zambéa, Mozambique | 1 source(s) | https://news.mongabay.com/short-article/2026/09/longest-african-mammal-movement-recorded-by-zambian-wild-dogs/
-- Fight with small arms and light weapons | ASSAILANT -> ? | Chimoio, Manica, Mozambique | 1 source(s) | https://allafrica.com/stories/202609140050.html
-- Fight with small arms and light weapons | ASSAILANT -> MOZAMBIQUE | Chimoio, Manica, Mozambique | 1 source(s) | https://allafrica.com/stories/202609140050.html
+- https://alextimes.com/breaking-news/supreme-court-of-virginia-panel-rejects-301-n-fairfax-st-appeal/
+  coded as: Use conventional military force, not specified below | VIRGINIA -> JUDGE | Alexandria, Al Iskandariyah, Egypt | 1 source(s)
+- https://allafrica.com/stories/202610010039.html
+  coded as: Use conventional military force, not specified below | EGYPTIAN -> ? | Egypt | 1 source(s)
+- https://countercurrents.org/2026/10/denial-as-a-way-of-life-netanyahu-on-egyptian-warnings-about-october-7/
+  coded as: Use unconventional violence, not specified below | EGYPT -> INTELLIGENCE | Egypt | 1 source(s)
 
-**6. Poland, Armed conflict, 2026-09-14** (22 events, typical 5.0)
+**6. Yemen - Threats & coercion - 2026-09-10**  (18 articles that day; a typical day is 3.0; score 5.1)
 
-- Use conventional military force, not specified below | RUSSIA -> DIPLOMAT | Poland | 1 source(s) | http://www.jpost.com/international/internationalrussia-ukraine-war/article-908471
-- Occupy territory | POLAND -> ? | Poland | 1 source(s) | https://edition.cnn.com/2026/09/14/world/petraeus-boris-johnson-russia-ukraine-intl-hnk
-- Occupy territory | WORKER -> BUSINESS | Poland | 1 source(s) | https://www.nwemail.co.uk/news/26536759.butchers-drapers-tea-stores-fascinating-photos-old-barrow/
+- https://ktvz.com/news/national-world/cnn-world/2026/09/10/iran-backed-rebels-capture-red-sea-port-tightening-grip-on-a-key-global-chokepoint/
+  coded as: Impose administrative sanctions, not specified below | IRAN -> DJIBOUTI | Sanaa, Sana', Yemen | 2 source(s)
+- https://aa.com.tr/en/middle-east/houthis-shell-civilian-sites-key-road-in-yemens-taiz-casualties-reported/4053538
+  coded as: Threaten, not specified below | YEMEN -> CIVILIAN | Al-Haql, Ma'rib, Yemen | 1 source(s)
+- https://aa.com.tr/en/middle-east/un-envoy-says-yemens-renewed-war-risks-becoming-prolonged-wider-regional-conflict/4053740
+  coded as: Threaten, not specified below | ? -> YEMEN | Sanaa, Sana', Yemen | 1 source(s)
 
-**7. Romania, Armed conflict, 2026-09-10** (30 events, typical 5.0)
+**7. Saudi Arabia - Threats & coercion - 2026-09-12**  (29 articles that day; a typical day is 7.0; score 4.9)
 
-- Occupy territory | MOLDOVAN -> ROMANIA | Romania | 1 source(s) | https://economictimes.indiatimes.com/news/international/world-news/flight-carrying-zelenskyy-to-norway-was-delayed-in-moldova-because-of-drone-incursion/articleshow/133989525.cms
-- Occupy territory | ? -> ROMANIA | Romania | 1 source(s) | https://www.kyivpost.com/post/84156
-- Employ aerial weapons | UKRAINE -> MOLDOVA | Romania | 1 source(s) | https://www.yahoo.com/news/world/articles/zelenskyys-plane-almost-hit-russian-052224446.html
+- https://www.wral.com/news/ap/9c2b6-saudi-arabia-has-few-options-as-it-faces-mounting-threats-from-iran-and-its-allies/
+  coded as: Threaten, not specified below | IRAN -> SAUDI ARABIA | Riyadh, Ar Riya?, Saudi Arabia | 2 source(s)
+- http://www.philippinetimes.com/news/279303541/houthis-asked-us-to-stay-out-of-saudi-fight-trump
+  coded as: Impose administrative sanctions, not specified below | SAUDI -> ? | Riyadh, Ar Riya?, Saudi Arabia | 2 source(s)
+- https://aa.com.tr/en/americas/us-signals-no-imminent-strikes-on-houthis-but-points-to-intel-support-for-saudis-report/4054874
+  coded as: Threaten to use military force, not specified below | RIYADH -> ? | Riyadh, Ar Riya?, Saudi Arabia | 1 source(s)
 
-**8. Pakistan, Armed conflict, 2026-09-18** (214 events, typical 81.0)
+**8. Yemen - Armed conflict - 2026-09-11**  (60 articles that day; a typical day is 12.5; score 3.8)
 
-- Use conventional military force, not specified below | PAKISTAN -> ? | Peshawar, North-West Frontier, Pakistan | 4 source(s) | https://www.queanbeyanage.com.au/story/9353315/attack-on-mosque-in-pakistan-kills-at-least-15/
-- Use conventional military force, not specified below | TALIBAN -> PAKISTAN | Peshawar, North-West Frontier, Pakistan | 3 source(s) | https://www.winnipegfreepress.com/world/2026/09/18/bombing-at-mosque-near-police-offices-in-pakistan-kills-at-least-7-and-wounds-more-than-30
-- Use conventional military force, not specified below | PAKISTAN -> TALIBAN | Peshawar, North-West Frontier, Pakistan | 3 source(s) | https://www.winnipegfreepress.com/world/2026/09/18/bombing-at-mosque-near-police-offices-in-pakistan-kills-at-least-7-and-wounds-more-than-30
+- http://www.arabherald.com/news/279301318/houthis-seize-yemen-entire-western-coast-after-taking-bab-al-mandab-strait-area
+  coded as: Occupy territory | MILITARY OFFICIAL -> YEMEN | Lahj, La?ij, Yemen | 3 source(s)
+- https://economictimes.indiatimes.com/news/defence/trump-rejects-saudi-request-for-strikes-on-houthis-axios/articleshow/134063296.cms
+  coded as: Use conventional military force, not specified below | SAUDI -> YEMEN | Mokha, Taizz, Yemen | 2 source(s)
+- http://eng.chinamil.com.cn/2025xb/W/N/16485042.html
+  coded as: Fight with artillery and tanks | MILITARY -> MEDIA | Bayda, Al Ma?wit, Yemen | 1 source(s)
 
-**9. Argentina, Armed conflict, 2026-09-30** (17 events, typical 3.0)
+**9. Oman - Armed conflict - 2026-09-23**  (13 articles that day; a typical day is 2.0; score 3.7)
 
-- Use conventional military force, not specified below | JUDICIARY -> MEDIA | Buenos Aires, Distrito Federal, Argentina | 1 source(s) | https://aa.com.tr/en/americas/argentinas-ex-president-kirchner-asks-un-to-review-corruption-conviction-/4073188
-- Use conventional military force, not specified below | MEDIA -> JUDICIARY | Buenos Aires, Distrito Federal, Argentina | 1 source(s) | https://aa.com.tr/en/americas/argentinas-ex-president-kirchner-asks-un-to-review-corruption-conviction-/4073188
-- Use conventional military force, not specified below | ARGENTINA -> UNITED KINGDOM | Malvinas, TucumáAS, Argentina | 1 source(s) | http://www.zerohedge.com/geopolitical/argentina-threatens-uk-court-action-over-falklands-oil-drilling
+- http://www.indiagazette.com/news/279327249/union-minister-sarbananda-sonowal-condoles-death-of-indian-seafarer-due-to-missile-attack-off-oman-coast
+  coded as: Fight with artillery and tanks | MINIST -> OMAN | Oman | 2 source(s)
+- https://aninews.in/news/world/asia/one-indian-national-killed-in-attack-on-commercial-vessel-off-oman-coast-19-rescued-india-says-targeting-of-seafarers-must-end-160-16020260923214842/
+  coded as: Use conventional military force, not specified below | OMAN -> NEW DELHI | Oman | 1 source(s)
+- https://ianslive.in/one-indian-seafarer-killed-19-rescued-in-attack-on-vessel-off-oman-coast--20260923215703
+  coded as: Use conventional military force, not specified below | OMAN -> NEW DELHI | Oman | 1 source(s)
 
-**10. Pakistan, Protest & unrest, 2026-09-24** (19 events, typical 7.5)
+**10. West Bank - Armed conflict - 2026-09-29**  (30 articles that day; a typical day is 12.0; score 3.0)
 
-- Demonstrate or rally | PESHAWAR -> POLICE | Peshawar, North-West Frontier, Pakistan | 1 source(s) | https://tribune.com.pk/story/2631103/police-security-taken-back-from-k-p-mpas
-- Engage in political dissent, not specified below | DEMONSTRATOR -> SECURITY FORCE | Pakistan | 1 source(s) | https://theshillongtimes.com/2026/09/24/pok-unrest-deepens-rising-killings-fuel-protests/
-- Demonstrate or rally | ISLAMABAD -> PAKISTANI | Islamabad, Islamabad, Pakistan | 1 source(s) | https://en.dailypakistan.com.pk/24-Sep-2026/pti-long-march-is-govt-ruling-out-army-deployment-ahead-of-islamabad-showdown
+- http://www.goskagit.com/news/nation/iran-tells-the-us-public-that-trumps-war-has-failed-and-other-mideast-developments/article_cc72a689-e7fc-5776-b811-759c926b0425.html
+  coded as: Impose blockade, restrict movement | SETTLER -> ? | Jalud, West Bank (general), West Bank | 2 source(s)
+- https://aa.com.tr/en/middle-east/israeli-occupiers-attack-3-west-bank-villages-torch-homes-vehicles/4072252
+  coded as: Use unconventional violence, not specified below | ISRAELI -> ? | Ramallah, West Bank (general), West Bank | 1 source(s)
+- https://english.wafa.ps/Pages/Details/175301
+  coded as: Use unconventional violence, not specified below | COLONIST -> ? | Ramallah, West Bank (general), West Bank | 1 source(s)
 
 **Result:** TODO (fill in once the Verdict column is complete: X of 10 Yes).
 
