@@ -45,16 +45,16 @@ Reading it: the three spikes I suspected were duplicate or misread single articl
 
 | # | Stratum | Day (UTC) | Country | Category | Articles | Typical day | Score | Verdict | Note |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | top third by score | 2026-09-16 | Kosovo (KV) | Threats & coercion | 22 | 0.0 | 22.0 |  |  |
-| 2 | top third by score | 2026-09-21 | Rwanda (RW) | Armed conflict | 11 | 0.5 | 14.2 |  |  |
-| 3 | top third by score | 2026-10-06 | Romania (RO) | Armed conflict | 12 | 2.0 | 6.7 |  |  |
-| 4 | top third by score | 2026-09-14 | Djibouti (DJ) | Threats & coercion | 10 | 1.0 | 6.1 |  |  |
-| 5 | middle third | 2026-10-01 | Egypt (EG) | Armed conflict | 20 | 5.0 | 5.1 |  |  |
-| 6 | middle third | 2026-09-10 | Yemen (YM) | Threats & coercion | 18 | 3.0 | 5.1 |  |  |
-| 7 | middle third | 2026-09-12 | Saudi Arabia (SA) | Threats & coercion | 29 | 7.0 | 4.9 |  |  |
-| 8 | bottom third | 2026-09-11 | Yemen (YM) | Armed conflict | 60 | 12.5 | 3.8 |  |  |
-| 9 | bottom third | 2026-09-23 | Oman (MU) | Armed conflict | 13 | 2.0 | 3.7 |  |  |
-| 10 | bottom third | 2026-09-29 | West Bank (WE) | Armed conflict | 30 | 12.0 | 3.0 |  |  |
+| 1 | top third by score | 2026-09-16 | Kosovo (KV) | Threats & coercion | 22 | 0.0 | 22.0 | Yes |  |
+| 2 | top third by score | 2026-09-21 | Rwanda (RW) | Armed conflict | 11 | 0.5 | 14.2 | No | Mostly court verdicts about the 1994 Rwandan genocide, not a current armed conflict. |
+| 3 | top third by score | 2026-10-06 | Romania (RO) | Armed conflict | 12 | 2.0 | 6.7 | No | Articles do not concern a current armed conflict (court case, business, celebrity news coded as military force). |
+| 4 | top third by score | 2026-09-14 | Djibouti (DJ) | Threats & coercion | 10 | 1.0 | 6.1 | Unclear | Kind of: real conflict (Houthi rebels seizing Red Sea shipping routes), but see 6, 7, 8. |
+| 5 | middle third | 2026-10-01 | Egypt (EG) | Armed conflict | 20 | 5.0 | 5.1 | No | No real armed event in the articles. |
+| 6 | middle third | 2026-09-10 | Yemen (YM) | Threats & coercion | 18 | 3.0 | 5.1 | No | Duplicate of the situation in 4 (same Houthi story, counted again under Yemen). |
+| 7 | middle third | 2026-09-12 | Saudi Arabia (SA) | Threats & coercion | 29 | 7.0 | 4.9 | No | Duplicate of the situation in 4 (same Houthi story, counted again under Saudi Arabia). |
+| 8 | bottom third | 2026-09-11 | Yemen (YM) | Armed conflict | 60 | 12.5 | 3.8 | No | Also the Houthi seizure of Red Sea / Saudi shipping routes, the same story as 4. |
+| 9 | bottom third | 2026-09-23 | Oman (MU) | Armed conflict | 13 | 2.0 | 3.7 | Yes |  |
+| 10 | bottom third | 2026-09-29 | West Bank (WE) | Armed conflict | 30 | 12.0 | 3.0 | Yes |  |
 
 ### Evidence links (version B sample)
 
@@ -148,7 +148,17 @@ Reading it: the three spikes I suspected were duplicate or misread single articl
 - https://english.wafa.ps/Pages/Details/175301
   coded as: Use unconventional violence, not specified below | COLONIST -> ? | Ramallah, West Bank (general), West Bank | 1 source(s)
 
-**Result:** TODO (fill in once the Verdict column is complete: X of 10 Yes).
+**Result (version B sample, judged by hand, 2026-10-08): 3 Yes, 1 Unclear, 6 No. The target of 7 of 10 was NOT met.**
+
+What went wrong, from the notes:
+
+1. **Misread event types (spikes 2, 3, 5: three of the six No).** Court cases, business stories and celebrity news were coded as "use conventional military force" or similar and then counted as armed conflict. Counting articles instead of rows did not help, because these are different articles that are each wrongly coded. This is the error the signal-quality classifier (S1) exists to catch: "is this record a real event of the coded type?"
+2. **One real story counted several times (spikes 4, 6, 7, 8: four of the ten).** The Houthi seizure of Red Sea shipping routes is a real event, but it raised separate spikes in Yemen (armed conflict and threats), Djibouti and Saudi Arabia. Counted as one story, that is arguably one correct alert plus three duplicates. The detector has no way to link related spikes.
+3. **What worked:** the three Yes (Kosovo, Oman, West Bank) are real events in the right place and category.
+
+Honest caveats: a sample of 10 is small, so 3 of 10 has a wide uncertainty (roughly 7% to 65% for the true rate), and the sample is stratified, not random over all alerts, so it over-represents weak alerts. Even so, it shows alerts are not yet trustworthy enough to brief from without the quality score.
+
+Possible next steps (not applied): use the S1 classifier score to filter or weight the articles that count toward a spike; group spikes that share the same source articles into one incident; show the quality score next to each alert. The version A check was never done by hand, so no like-for-like comparison with version B exists.
 
 ## Signal-quality classifier (S1)
 
