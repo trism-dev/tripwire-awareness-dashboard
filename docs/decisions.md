@@ -101,3 +101,10 @@
 - **Worker now refreshes spikes** for yesterday and today every pass, in its own try/except so a spike error can never stop ingestion.
 - **Known weakness:** with the floor at 10 events, a place that goes from 0 to 11 scores 11-14 and tops a Score ranking above much larger real surges (Israel armed conflict: 362 vs typical 212 scores 3.8). This is why there is a count ranking. The S3 spot-check should decide whether to raise the floor or rank by a blend.
 - **Today is partial,** so its score can only rise; the day picker labels it "(so far today)".
+
+## 2026-10-08: Spikes count distinct articles, not event rows
+- **Decision:** `daily_counts` uses `count(DISTINCT coalesce(source_url, global_event_id::text))`. The floor (10) and threshold (score 3) now mean 10 articles. The Alerts and Trend tabs say "Articles".
+- **Alternatives:** weight rows by `num_sources` (the PRD's optional idea; it rewards well-reported events but does not stop one article's many rows), or keep rows and raise the floor (hides small real surges and still inflates big ones).
+- **Why:** the S3 backtest showed 40% of spikes rested on fewer than 10 distinct articles and the median spike had about 2 rows per article. After the change, 502 spikes became 298 and the three suspected duplicate-article spikes in the sample disappeared.
+- **Cost:** a few small genuine spikes drop out (e.g. Pakistan protests at 10 articles). "Events in view" and the map still count event rows; only spike detection changed.
+- **Open:** a clean version-B accuracy figure needs a fresh spot-check sample.

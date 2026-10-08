@@ -270,7 +270,7 @@ def render_alerts(categories: list[str], countries: list[str]):
         st.info("No spikes for this day with the current category and country filters.")
         return
     st.caption(
-        "A spike is a country and category with at least 10 events in a day and a Score of 3 or more. "
+        "A spike is a country and category with at least 10 distinct news articles in a day and a Score of 3 or more. "
         "Score = how far above a typical day it is, measured in normal day-to-day swings; the "
         "typical day is the median of the previous 28 days. 'Quiet baseline' means the place is "
         "usually near zero, so a Poisson spread is used. Select a row to chart it in the Trend tab."
@@ -279,7 +279,7 @@ def render_alerts(categories: list[str], countries: list[str]):
         {
             "Country": alerts["country_code"].map(country_name),
             "Category": alerts["category"],
-            "Events": alerts["count"],
+            "Articles": alerts["count"],
             "Typical day": alerts["baseline_median"].round(1),
             "Score": alerts["z"].round(1),
             "Rule": np.where(alerts["baseline_mad"] > 0, "normal", "quiet baseline"),
@@ -310,7 +310,7 @@ def trend_chart(df: pd.DataFrame, dark: bool):
     x = alt.X("day:T", title=None, axis=alt.Axis(format="%b %d", labelOverlap=True))
     tip = [
         alt.Tooltip("day:T", title="Day (UTC)", format="%Y-%m-%d"),
-        alt.Tooltip("count:Q", title="Events"),
+        alt.Tooltip("count:Q", title="Articles"),
         alt.Tooltip("typical:Q", title="Typical day", format=".1f"),
         alt.Tooltip("threshold:Q", title="Flag above", format=".1f"),
     ]
@@ -320,7 +320,7 @@ def trend_chart(df: pd.DataFrame, dark: bool):
         y="threshold:Q"
     )
     events = base.mark_line(color=line, strokeWidth=2).encode(
-        y=alt.Y("count:Q", title="Events per day", scale=alt.Scale(zero=True)), tooltip=tip
+        y=alt.Y("count:Q", title="Articles per day", scale=alt.Scale(zero=True)), tooltip=tip
     )
     flagged = (
         base.transform_filter("datum.flagged")
@@ -345,18 +345,18 @@ def render_trend(country_codes: list[str]):
     category = right.selectbox("Category", cat.DEFAULT_VISIBLE, key="trend_category")
     df = load_trend(country, category, datetime.now(UTC).date())
     if df["count"].sum() == 0:
-        st.info("No events for this country and category in the last 30 days.")
+        st.info("No articles for this country and category in the last 30 days.")
         return
     st.altair_chart(trend_chart(df, is_dark()), width="stretch")
     st.caption(
-        "Blue line: events per day. Grey band: from a typical day up to the flag threshold "
+        "Blue line: distinct news articles per day. Grey band: from a typical day up to the flag threshold "
         "(dashed). Orange diamonds: days flagged as spikes. The last day is partial until midnight UTC."
     )
     with st.expander("Show the numbers"):
         shown = df.assign(day=df["day"].dt.strftime("%Y-%m-%d")).rename(
             columns={
                 "day": "Day (UTC)",
-                "count": "Events",
+                "count": "Articles",
                 "typical": "Typical day",
                 "threshold": "Flag above",
                 "flagged": "Flagged",

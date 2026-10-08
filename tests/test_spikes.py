@@ -188,3 +188,35 @@ def test_daily_counts_can_be_limited_to_one_group(conn):
     one = daily_counts(conn, DAY, DAY, country="UP", category=ARMED)
     assert list(one["count"]) == [3]
     assert int(daily_counts(conn, DAY, DAY, country="UP")["count"].sum()) == 7
+
+
+def test_daily_counts_count_articles_not_rows(conn):
+    # 6 rows from ONE article, 2 rows from another, 3 rows with no URL (each counts as its own)
+    def row(eid, url):
+        conn.execute(
+            "INSERT INTO events (global_event_id, event_date, date_added, country_code, category, source_url)"
+            " VALUES (%s, %s, now(), 'UP', %s, %s)",
+            (eid, DAY, ARMED, url),
+        )
+
+    for i in range(6):
+        row(100 + i, "https://example.com/a")
+    for i in range(2):
+        row(200 + i, "https://example.com/b")
+    for i in range(3):
+        row(300 + i, None)
+    conn.commit()
+    assert list(daily_counts(conn, DAY, DAY)["count"]) == [1 + 1 + 3]
+
+
+def test_one_article_with_many_rows_is_not_a_spike(conn):
+    """The Tunisia case: 17 rows from a single article must not trigger an alert."""
+    seed_history(conn)
+    for i in range(17):
+        conn.execute(
+            "INSERT INTO events (global_event_id, event_date, date_added, country_code, category, source_url)"
+            " VALUES (%s, %s, now(), 'TS', %s, 'https://example.com/one-article')",
+            (5000 + i, DAY, ARMED),
+        )
+    conn.commit()
+    assert run(conn, DAY, z_threshold=3, min_count=10).empty

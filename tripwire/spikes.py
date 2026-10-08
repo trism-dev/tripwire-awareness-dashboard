@@ -28,10 +28,16 @@ SPIKE_COLUMNS = ["country_code", "category", "day", "count", "baseline_median", 
 def daily_counts(
     conn, start: date, end: date, country: str | None = None, category: str | None = None
 ) -> pd.DataFrame:
-    """Events per day x country x category (mission categories only). Days with none are absent."""
+    """Distinct source ARTICLES per day x country x category (mission categories only).
+
+    GDELT often writes several event rows for one article, so counting rows overstates activity
+    (40% of the first backtest's spikes rested on fewer than 10 articles). A row with no URL
+    counts as its own article. Days with none are absent.
+    """
     rows = conn.execute(
         """
-        SELECT event_date, country_code, category, count(*)
+        SELECT event_date, country_code, category,
+               count(DISTINCT coalesce(source_url, global_event_id::text))
         FROM events
         WHERE event_date BETWEEN %s AND %s
           AND country_code IS NOT NULL

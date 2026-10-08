@@ -6,15 +6,42 @@ Honest numbers only. Anything marked TODO is not measured yet.
 
 **Method.** Daily counts per country x category (event date, UTC), compared with the median and MAD of the previous 28 days; flagged when the score is >= 3 and the count is >= 10 (see `docs/decisions.md`).
 
-**Backtest, 2026-09-06 to 2026-10-07 (32 complete days, today excluded):**
+**Version A (counts event rows), first measurement, 2026-09-06 to 2026-10-07 (32 complete days, today excluded):**
 
 - 502 spikes fired across 121 countries, about 16 per day.
 - By category: Armed conflict 216, Threats & coercion 179, Protest & unrest 63, Force posture 32, Mass violence 12.
 - 233 of 502 (46%) have fewer than 20 events; 52 used the quiet-baseline (Poisson) rule.
 
-**Finding before the human check (measured, not opinion).** The detector counts event rows, but one article often produces several rows (different actor pairs, repeated mentions). Across the 502 backtest spikes, 203 (40%) rest on fewer than 10 distinct source articles, 188 (37%) have more than half of their rows duplicated from the same article, and the median spike has 0.53 articles per row. Example: spike 2 (Tunisia) is 17 rows from one article. Counting distinct articles instead of rows would remove or shrink many of these. This is a proposed change, not yet applied; if applied, re-run this backtest and report both versions.
+**Finding before the human check (measured, not opinion).** The detector counts event rows, but one article often produces several rows (different actor pairs, repeated mentions). Across the 502 backtest spikes, 203 (40%) rest on fewer than 10 distinct source articles, 188 (37%) have more than half of their rows duplicated from the same article, and the median spike has 0.53 articles per row. Example: spike 2 (Tunisia) is 17 rows from one article. Counting distinct articles instead of rows would remove or shrink many of these. This change has now been applied (version B below).
 
-**Spot-check (target: at least 7 of 10 match a real, reported change).** Sample drawn with seed 42, stratified: 4 from the top third by score, 3 from the middle, 3 from the bottom, so weak alerts are tested too, not just the headline ones. Open the links for each spike and decide: do the articles describe a real increase in this kind of event in this country on this day? Put Yes / No / Unclear in the Verdict column.
+**Version B (counts distinct source articles), now the live behaviour.** Same period and thresholds (score >= 3, at least 10 *articles*); a row with no URL counts as its own article.
+
+| | Version A: event rows | Version B: distinct articles |
+|---|---|---|
+| Spikes fired in 32 days | 502 | 298 (-41%) |
+| Countries with a spike | 121 | 83 |
+| Armed conflict / Threats / Protest / Force posture / Mass violence | 216 / 179 / 63 / 32 / 12 | 129 / 109 / 39 / 14 / 7 |
+| Spikes with fewer than 20 events or articles | 233 (46%) | 181 (61%) |
+| Spikes using the quiet-baseline rule | 52 | 14 |
+
+What version B does to the 10 sampled version-A spikes below (5 of 10 stay flagged):
+
+| # | Country | Category | Day | Version A count | Version B count | Typical (B) | Version B |
+|---|---|---|---|---|---|---|---|
+| 1 | Ethiopia | Armed conflict | 2026-09-25 | 120 rows | 26 articles | 2.0 | still flagged |
+| 2 | Tunisia | Armed conflict | 2026-09-18 | 17 rows | 2 articles | 0.0 | no longer flagged |
+| 3 | France | Protest & unrest | 2026-10-06 | 53 rows | 38 articles | 2.5 | still flagged |
+| 4 | Greenland | Threats & coercion | 2026-09-18 | 11 rows | 8 articles | 1.0 | no longer flagged |
+| 5 | Mozambique | Armed conflict | 2026-09-14 | 10 rows | 2 articles | 1.0 | no longer flagged |
+| 6 | Poland | Armed conflict | 2026-09-14 | 22 rows | 17 articles | 4.0 | still flagged |
+| 7 | Romania | Armed conflict | 2026-09-10 | 30 rows | 10 articles | 2.0 | still flagged |
+| 8 | Pakistan | Armed conflict | 2026-09-18 | 214 rows | 97 articles | 35.0 | still flagged |
+| 9 | Argentina | Armed conflict | 2026-09-30 | 17 rows | 7 articles | 2.0 | no longer flagged |
+| 10 | Pakistan | Protest & unrest | 2026-09-24 | 19 rows | 10 articles | 4.5 | no longer flagged |
+
+Reading it: the three spikes I suspected were duplicate or misread single articles (Tunisia, Mozambique, Argentina) all drop out, and the large real-looking ones (Ethiopia, France, Pakistan mosque bombing) stay. The cost: borderline cases also drop, such as Pakistan protests (10 articles vs a typical 4.5, which URLs suggested were real) and Greenland. Fewer, more trustworthy alerts, at the price of missing a few small genuine ones. The share of spikes with under 20 articles went up because the big inflated ones shrank into that range. The verdicts below were drawn from version A, so they test version A; a clean accuracy figure for version B needs a fresh sample from the B alerts (same method, new seed) once the A check is done.
+
+**Spot-check (target: at least 7 of 10 match a real, reported change).** Sample drawn from version A with seed 42, stratified: 4 from the top third by score, 3 from the middle, 3 from the bottom, so weak alerts are tested too, not just the headline ones. Open the links for each spike and decide: do the articles describe a real increase in this kind of event in this country on this day? Put Yes / No / Unclear in the Verdict column.
 
 | # | Stratum | Day (UTC) | Country | Category | Events | Typical day | Score | Verdict | Note |
 |---|---|---|---|---|---|---|---|---|---|
