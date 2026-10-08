@@ -115,3 +115,12 @@
 - **Label meaning:** 1 = the article shows a real event of about the coded type at roughly the coded place; 0 = wrong type, wrong place, not an event, or an old event rehashed (the S3 spot-check errors were all of this kind).
 - **Safety:** the page does nothing unless `ENABLE_LABELING=1`. There are no user accounts, so on a public host anyone could otherwise write labels. Do not set it on Railway.
 - **Shared helper:** `safe_url` moved to `tripwire/web.py` so Home and Label use the same link check.
+
+## 2026-10-08: Signal-quality classifier (S1)
+- **Decision:** logistic regression on the PRD's GDELT-only features, trained on 222 hand labels; evaluation = stratified 70/30 split (seed 42), 5-fold CV inside the training part, test set used once, plus two baselines (always credible; rule geo_type >= 3) and a bootstrap interval for test AUC. Metrics and the feature list are saved next to the model (`models/quality_metrics.json`).
+- **Result, honestly:** modest. Test F1 0.57 vs 0.56 for always-credible (noise); precision 0.53 vs 0.39; ROC-AUC 0.68 (interval 0.54-0.81). See `docs/evaluation.md`.
+- **The saved model is refitted on all labels** (more data for scoring); the reported numbers come from the train-split model, so the saved model is never evaluated on rows it saw.
+- **Scores are stored in `events.quality_score`** (0 to 1). `make score` fills empty ones; the worker scores new events every pass (isolated try/except, never blocks ingestion). After retraining, `python -m tripwire.quality.score --all`.
+- **The model file is committed** (150 KB, mostly the news-site frequency table) because the hosted worker needs it; `.gitignore` no longer excludes `models/*.joblib`.
+- **Not done on purpose:** no extra features beyond the PRD list (222 labels cannot support more), no gradient-boosted comparison (stretch item), no threshold tuning (would need more data than the test set holds).
+- **Open risk:** labeled events can be deleted by a future retention job (`labels` cascades from `events`). Retention must skip labeled events, or the training data disappears.

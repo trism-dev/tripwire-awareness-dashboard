@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from tripwire.backfill import backfill
 from tripwire.db import connect, migrate
 from tripwire.ingest import run_cycle
+from tripwire.quality.score import load_artifact, score_missing
 from tripwire.spikes import run as run_spikes
 
 log = logging.getLogger("worker")
@@ -28,6 +29,14 @@ def tick(conn, fetch=None, delay=0.5) -> None:
             run_spikes(conn, day)
     except Exception:
         log.exception("spike detection failed")
+    # Score new events with the quality model, if one has been trained. Also isolated: a scoring
+    # problem must never stop ingestion.
+    try:
+        model = load_artifact()
+        if model is not None:
+            score_missing(conn, model, max_rows=50_000)
+    except Exception:
+        log.exception("quality scoring failed")
 
 
 def main() -> None:

@@ -162,4 +162,60 @@ Possible next steps (not applied): use the S1 classifier score to filter or weig
 
 ## Signal-quality classifier (S1)
 
-TODO: not built yet (needs the labeling page and about 300 hand labels). Required report: precision, recall, ROC-AUC and confusion matrix on a held-out test set, against the always-credible baseline.
+**What it predicts.** Whether an event record is a real event of the coded type at roughly the coded place (label 1 = credible), from GDELT fields only. Logistic regression (median imputer, standard scaler). Features: log sources / articles / mentions, place precision (`geo_type`), root-event flag, Goldstein score, average tone, quad class, whether each actor is named, log of how many events the same news site has, and category. Trained by `make train`, scores stored by `make score`.
+
+**Labels.** 222 hand labels (87 credible, 39%) from one labeler (the project owner), drawn from the last 30 days with the five mission categories taking turns. Because categories were balanced rather than sampled by real frequency, the 39% credible rate is **not** the rate across all events. Split: stratified 70/30 with seed 42: 155 train, 67 test.
+
+### Result on the held-out test set (67 events, touched once)
+
+| Predictor | Precision | Recall | F1 | ROC-AUC | TN / FP / FN / TP |
+|---|---|---|---|---|---|
+| Logistic regression | 0.53 | 0.62 | 0.57 | 0.68 | 27 / 14 / 10 / 16 |
+| Always predict credible (baseline) | 0.39 | 1.00 | 0.56 | 0.50 | 0 / 41 / 0 / 26 |
+| Rule: geo_type >= 3 | 0.43 | 0.77 | 0.56 | 0.57 | 15 / 26 / 6 / 20 |
+
+ROC-AUC 95% interval for the model (bootstrap over the test set): **0.54 to 0.81**.
+
+### 5-fold cross-validation inside the training split (mean +/- std over folds)
+
+| Predictor | Precision | Recall | F1 | ROC-AUC |
+|---|---|---|---|---|
+| Logistic regression | 0.61 | 0.62 | 0.61 +/- 0.07 | 0.75 +/- 0.08 |
+| Always predict credible | 0.39 | 1.00 | 0.56 +/- 0.01 | 0.50 |
+
+### Honest reading
+
+- **Success criterion "beat always-credible on F1":** met on paper (test 0.57 vs 0.56; CV 0.61 vs 0.56), but the test margin is about 0.01 on 67 events, which is noise. F1 flatters the baseline because it gets perfect recall by flagging everything.
+- **Where it genuinely helps is precision:** of the events it calls credible, 53% are, against 39% for flagging everything. That is the number that matters for "hide low-quality events", at the price of missing 38% of the credible ones.
+- **The signal is real but modest.** ROC-AUC 0.68 on test (interval 0.54 to 0.81, which excludes 0.5 but only just) and 0.75 in cross-validation. The simple one-line rule is no better than guessing here (AUC 0.57).
+- **Not ready to be trusted alone.** At this accuracy it should rank and de-emphasise events, not silently delete them.
+
+### What it learned (standardized coefficients; positive = more credible)
+
+| Feature | Coefficient |
+|---|---|
+| `quad_class` | +0.86 |
+| `cat_Mass violence` | -0.79 |
+| `cat_Protest & unrest` | +0.75 |
+| `log_sources` | -0.65 |
+| `geo_type` | +0.58 |
+| `avg_tone` | -0.46 |
+| `goldstein` | +0.40 |
+| `log_mentions` | +0.07 |
+| `cat_Threats & coercion` | -0.05 |
+| `cat_Armed conflict` | +0.05 |
+| `has_actor2` | +0.04 |
+| `cat_Force posture` | +0.02 |
+| `log_articles` | +0.01 |
+| `log_domain_freq` | +0.01 |
+| `has_actor1` | -0.01 |
+| `is_root` | +0.00 |
+
+Read with care: with 155 training rows these are unstable. **`log_sources` is negative, which is backwards from reality**, and comes from the data, not from a bug: 216 of the 222 labeled events have a single source, only 6 have two or more, and those few were mostly judged not credible. The feature has almost no spread in GDELT (a new event row is written once, with `NumSources` mostly 1), so the model cannot learn what extra sources are worth. `quad_class`, place precision and the Mass violence / Protest categories carry most of the signal.
+
+### Limits and next steps
+
+- One labeler, 222 labels, 67 test rows: wide uncertainty; more labels would tighten it (the PRD target is 300).
+- "Other conflict" events are scored too, but that category had no labels, so those scores are extrapolated.
+- If more labels are added, rerun `make train` and `python -m tripwire.quality.score --all`. The saved model is refitted on all labels, so it has seen the test rows; the numbers above are from the train-split model and are the ones to quote.
+- Multi-source events are scarce, so a labeling pass that deliberately over-samples them would be the cheapest way to test whether sources help.

@@ -22,7 +22,8 @@ make test && make lint
 `make app` runs the dashboard from your working copy instead (for development). It uses the same
 port as the Docker one, so run `docker compose stop app` first.
 
-Other commands: `make ingest` (one cycle), `make spikes` (recompute spikes).
+Other commands: `make ingest` (one cycle), `make spikes` (recompute spikes), `make train` (train the
+quality classifier from your labels), `make score` (score events that have no quality score yet).
 
 **Labeling (local only):** open the *Label* page in the sidebar to hand-label events for the quality
 classifier. It writes to the database, so it only works when `ENABLE_LABELING=1` is set (on by default
