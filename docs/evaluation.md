@@ -164,58 +164,58 @@ Possible next steps (not applied): use the S1 classifier score to filter or weig
 
 **What it predicts.** Whether an event record is a real event of the coded type at roughly the coded place (label 1 = credible), from GDELT fields only. Logistic regression (median imputer, standard scaler). Features: log sources / articles / mentions, place precision (`geo_type`), root-event flag, Goldstein score, average tone, quad class, whether each actor is named, log of how many events the same news site has, and category. Trained by `make train`, scores stored by `make score`.
 
-**Labels.** 222 hand labels (87 credible, 39%) from one labeler (the project owner), drawn from the last 30 days with the five mission categories taking turns. Because categories were balanced rather than sampled by real frequency, the 39% credible rate is **not** the rate across all events. Split: stratified 70/30 with seed 42: 155 train, 67 test.
+**Labels.** 312 hand labels (125 credible, 40%) from one labeler (the project owner), drawn from the last 30 days with the five mission categories taking turns: Protest & unrest 63 (54% credible), Threats & coercion 63 (54% credible), Armed conflict 62 (44% credible), Force posture 62 (42% credible), Mass violence 62 (6% credible). Because categories were balanced rather than sampled by real frequency, the credible rate is **not** the rate across all events. Split: stratified 70/30, seed 42: 218 train, 94 test.
 
-### Result on the held-out test set (67 events, touched once)
+### Result on the held-out test set (94 events, touched once)
 
 | Predictor | Precision | Recall | F1 | ROC-AUC | TN / FP / FN / TP |
 |---|---|---|---|---|---|
-| Logistic regression | 0.53 | 0.62 | 0.57 | 0.68 | 27 / 14 / 10 / 16 |
-| Always predict credible (baseline) | 0.39 | 1.00 | 0.56 | 0.50 | 0 / 41 / 0 / 26 |
-| Rule: geo_type >= 3 | 0.43 | 0.77 | 0.56 | 0.57 | 15 / 26 / 6 / 20 |
+| Logistic regression | 0.56 | 0.58 | 0.57 | 0.71 | 39 / 17 / 16 / 22 |
+| Always predict credible (baseline) | 0.40 | 1.00 | 0.58 | 0.50 | 0 / 56 / 0 / 38 |
+| Rule: geo_type >= 3 | 0.50 | 0.79 | 0.61 | 0.63 | 26 / 30 / 8 / 30 |
 
-ROC-AUC 95% interval for the model (bootstrap over the test set): **0.54 to 0.81**.
+ROC-AUC 95% interval for the model (bootstrap over the test set): **0.61 to 0.81**.
 
 ### 5-fold cross-validation inside the training split (mean +/- std over folds)
 
 | Predictor | Precision | Recall | F1 | ROC-AUC |
 |---|---|---|---|---|
-| Logistic regression | 0.61 | 0.62 | 0.61 +/- 0.07 | 0.75 +/- 0.08 |
-| Always predict credible | 0.39 | 1.00 | 0.56 +/- 0.01 | 0.50 |
+| Logistic regression | 0.59 | 0.54 | 0.55 +/- 0.06 | 0.75 +/- 0.03 |
+| Always predict credible | 0.40 | 1.00 | 0.57 +/- 0.01 | 0.50 |
 
 ### Honest reading
 
-- **Success criterion "beat always-credible on F1":** met on paper (test 0.57 vs 0.56; CV 0.61 vs 0.56), but the test margin is about 0.01 on 67 events, which is noise. F1 flatters the baseline because it gets perfect recall by flagging everything.
-- **Where it genuinely helps is precision:** of the events it calls credible, 53% are, against 39% for flagging everything. That is the number that matters for "hide low-quality events", at the price of missing 38% of the credible ones.
-- **The signal is real but modest.** ROC-AUC 0.68 on test (interval 0.54 to 0.81, which excludes 0.5 but only just) and 0.75 in cross-validation. The simple one-line rule is no better than guessing here (AUC 0.57).
-- **Not ready to be trusted alone.** At this accuracy it should rank and de-emphasise events, not silently delete them.
+- **Success criterion "beat always-credible on F1": **NOT met**: test F1 is 0.57 against 0.58 for always-credible, and cross-validated F1 is 0.55 +/- 0.06 against 0.57.** F1 is a poor yardstick here: flagging everything gives perfect recall, so the baseline's F1 (0.58) is hard to beat when 40% of events are credible. The one-line rule `geo_type >= 3` reaches F1 0.61 by the same route (recall 0.79, precision only 0.50).
+- **What the model does achieve is ranking and precision.** ROC-AUC 0.71 (interval 0.61 to 0.81, clearly above 0.5) against 0.63 for the rule, and precision 0.56 against 0.40 for flagging everything, at the cost of missing 42% of the credible events. For "show me the cleaner events first" that is useful; for "decide what is true" it is not.
+- **Regularisation is not the limit.** Cross-validated AUC on the training split was flat across a 3000x range of regularisation strength (0.72 to 0.745), so the ceiling is the information in the available fields, not tuning. No tuning was applied to the final model.
+- **Not ready to be trusted alone.** It should rank and de-emphasise events, not silently delete them.
 
 ### What it learned (standardized coefficients; positive = more credible)
 
 | Feature | Coefficient |
 |---|---|
-| `quad_class` | +0.86 |
-| `cat_Mass violence` | -0.79 |
-| `cat_Protest & unrest` | +0.75 |
-| `log_sources` | -0.65 |
-| `geo_type` | +0.58 |
-| `avg_tone` | -0.46 |
-| `goldstein` | +0.40 |
-| `log_mentions` | +0.07 |
-| `cat_Threats & coercion` | -0.05 |
-| `cat_Armed conflict` | +0.05 |
-| `has_actor2` | +0.04 |
-| `cat_Force posture` | +0.02 |
-| `log_articles` | +0.01 |
-| `log_domain_freq` | +0.01 |
-| `has_actor1` | -0.01 |
+| `avg_tone` | -0.85 |
+| `cat_Mass violence` | -0.83 |
+| `cat_Protest & unrest` | +0.49 |
+| `log_sources` | -0.42 |
+| `cat_Force posture` | +0.29 |
+| `quad_class` | +0.28 |
+| `geo_type` | +0.28 |
+| `log_mentions` | +0.19 |
+| `log_articles` | +0.17 |
+| `log_domain_freq` | +0.15 |
+| `has_actor2` | +0.15 |
+| `goldstein` | +0.15 |
+| `cat_Threats & coercion` | +0.03 |
+| `cat_Armed conflict` | -0.01 |
+| `has_actor1` | +0.01 |
 | `is_root` | +0.00 |
 
-Read with care: with 155 training rows these are unstable. **`log_sources` is negative, which is backwards from reality**, and comes from the data, not from a bug: 216 of the 222 labeled events have a single source, only 6 have two or more, and those few were mostly judged not credible. The feature has almost no spread in GDELT (a new event row is written once, with `NumSources` mostly 1), so the model cannot learn what extra sources are worth. `quad_class`, place precision and the Mass violence / Protest categories carry most of the signal.
+Read with care: with 218 training rows these are not stable. `log_sources` is negative, which is backwards from reality: 305 of 312 labeled events have a single source and only 7 have two or more (1 of them credible), because GDELT writes an event row once with `NumSources` mostly 1. The feature has almost no spread, so the model cannot learn what extra sources are worth. Event category (Mass violence is almost never credible), average tone and place precision carry most of the signal.
 
 ### Limits and next steps
 
-- One labeler, 222 labels, 67 test rows: wide uncertainty; more labels would tighten it (the PRD target is 300).
+- One labeler, 312 labels, 94 test rows: wide uncertainty.
 - "Other conflict" events are scored too, but that category had no labels, so those scores are extrapolated.
-- If more labels are added, rerun `make train` and `python -m tripwire.quality.score --all`. The saved model is refitted on all labels, so it has seen the test rows; the numbers above are from the train-split model and are the ones to quote.
-- Multi-source events are scarce, so a labeling pass that deliberately over-samples them would be the cheapest way to test whether sources help.
+- After adding labels, rerun `make train` and `python -m tripwire.quality.score --all`. The saved model is refitted on all labels, so it has seen the test rows; the numbers above come from the train-split model and are the ones to quote.
+- A labeling pass that deliberately over-samples multi-source events (about 40 would do) is the cheapest way to test whether sources help; the current queue cannot target them.
