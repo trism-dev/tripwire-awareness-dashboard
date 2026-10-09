@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16
+        image: public.ecr.aws/docker/library/postgres:16  # mirror of the official image: Docker Hub rate-limits CI runners
         env:
           POSTGRES_USER: tripwire
           POSTGRES_PASSWORD: tripwire
