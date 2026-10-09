@@ -257,3 +257,11 @@ Two follow-up checks, both using **cross-validation on the training rows only** 
 **Decision.** Production keeps the plain feature set (V0). It is equivalent to the old model but drops three features that never varied in the labeled data (root-event flag, actor 1 present, actor 2 present). The richer feature groups stay in the code and are tested, but are switched off; the new database columns stay stored. Number of variants tried against the frozen test set: 4 (all reported above). Not adopted: no re-score of anything changed except the removal of the constant features (scores are essentially unchanged).
 
 **What this means.** The event-quality model is limited by the information available per label, not by which GDELT fields it sees. Per-event credibility from GDELT fields alone sits at about 0.67 to 0.77 AUC with this many labels. Larger gains would need much more labeled data or a different kind of signal (for example, whether other outlets corroborate the same event), not more columns.
+
+## Accuracy refinement round 2: alerts (in progress)
+
+**Harness.** `make evaluate` reports the event model against `models/baseline_metrics.json` and the alert detector on the hand-judged gold set (`docs/spike_gold_set.csv`, 50 spikes: 30 dev, 20 final; 10 judged so far).
+
+**Baseline before any alert change (2026-10-10):** 9.8 alerts per day; on the 10 judged spikes all 10 are flagged, 3 real, 6 not, 1 unclear, precision 33% (3 of 9 decided), 3 of 3 real alerts kept.
+
+**Finding: same-day article overlap does not explain the duplicate alerts we judged.** Across 307 backtest spikes, 161 same-day pairs share at least one source article, but only 13 pairs share half or more of the smaller spike's articles (41 at 30%). The four Houthi-story duplicates from the first spot-check fall on four different days (Sep 10, 11, 12, 14) in different countries and share 0, 1 and 5 articles. So "duplicate story" there means the same ongoing situation being alerted again on later days, not the same articles being counted twice. Grouping alerts by shared articles would fix the smaller case (for example Central African Republic armed conflict plus threats on one day) but not the judged one. Whether to build grouping, a "continuing situation" flag, or neither will be decided from the reason tags in the 40 new audits.

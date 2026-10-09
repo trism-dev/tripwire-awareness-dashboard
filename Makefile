@@ -1,4 +1,4 @@
-.PHONY: up migrate backfill ingest spikes train score app test lint
+.PHONY: up migrate backfill ingest spikes train score evaluate app test lint
 
 up:
 	docker compose up -d
@@ -14,6 +14,8 @@ train:
 	uv run --env-file .env python -m tripwire.quality.train
 score:
 	uv run --env-file .env python -m tripwire.quality.score
+evaluate:
+	uv run --env-file .env python -m tripwire.evaluate
 app:
 	uv run --env-file .env streamlit run app/Home.py
 test:
