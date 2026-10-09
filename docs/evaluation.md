@@ -234,3 +234,26 @@ Read with care: with 218 training rows these are not stable. `log_sources` is ne
 | 0.5 | 1 | 2 | 0 | 167 |
 
 **Result: no improvement.** The filter removes misreads (Romania drops at 0.3) but also removes two of the three real spikes (Oman, West Bank), so the share of surviving spikes that were real stays near one in three at best. The model is too weak to tell real from misread events at the level a spike count needs. Only 10 judged spikes, so this is indicative, not conclusive. The quality score is therefore used for browsing (filter, detail, table), not for spike detection. The same labeled events may overlap with these spikes, which would flatter the model, not hurt it.
+
+## Accuracy refinement round 1: richer event-model features (not adopted)
+
+**Why.** The 312 labels showed that the specific event code and actor details seemed to matter (code 202 is 0% credible, 173 is 72%; an actor based in another country than the event is 26% credible against 43% when they match). Those fields were not stored, so the database gained 7 columns (migration 002) and the 58-day backfill was re-read (5,565 files, 797,968 events, all 312 labels intact).
+
+**Setup.** The test set is now frozen: an event is in it if a hash of its id falls in 3 of 10 buckets, so adding labels never moves a test row into training (106 test rows, 206 training rows). Adoption rule, written **before** running: a variant is adopted only if cross-validated ROC-AUC >= 0.803 (baseline 0.763 + 0.04) **and** the test-AUC 95% interval's lower bound is above 0.55 (the baseline's); if several pass, the simplest wins.
+
+| Variant | Features | CV ROC-AUC (5-fold, train) | Test ROC-AUC (95% interval) | Test precision at 60% recall | Rule |
+|---|---|---|---|---|---|
+| V0 plain: base + category (old model minus 3 constant features) | 13 | 0.767 +/- 0.050 | 0.676 (0.57 to 0.77) | 0.51 | fail |
+| V1 + specific event codes (15 most common) | 29 | 0.743 +/- 0.071 | 0.666 (0.55 to 0.76) | 0.50 | fail |
+| V2 + actor types and location mismatch | 21 | 0.750 +/- 0.051 | 0.677 (0.56 to 0.77) | 0.53 | fail |
+| V3 + both | 37 | 0.730 +/- 0.085 | 0.661 (0.55 to 0.76) | 0.50 | fail |
+
+**Result: no improvement. More features made the model slightly worse.** With 206 training rows, 21 to 37 columns overfit.
+
+Two follow-up checks, both using **cross-validation on the training rows only** (the test rows were not touched):
+- **Stronger regularisation does not rescue it.** Repeated 5x5 CV AUC by regularisation strength C (0.01 / 0.03 / 0.1 / 0.3 / 1): plain 0.775 / 0.779 / 0.780 / 0.779 / 0.776; plus codes 0.754 / 0.754 / 0.754 / 0.753 / 0.748; plus actors 0.759 / 0.765 / 0.764 / 0.758 / 0.753; both 0.744 / 0.741 / 0.741 / 0.737 / 0.732.
+- **More labels would not close the gap either.** Learning curve (CV AUC at 49 / 74 / 98 / 131 / 164 training rows): plain 0.726 / 0.745 / 0.754 / 0.762 / 0.776; rich 0.674 / 0.690 / 0.705 / 0.710 / 0.721. The plain model is still improving slowly; the gap to the rich one (about 0.055) is not narrowing.
+
+**Decision.** Production keeps the plain feature set (V0). It is equivalent to the old model but drops three features that never varied in the labeled data (root-event flag, actor 1 present, actor 2 present). The richer feature groups stay in the code and are tested, but are switched off; the new database columns stay stored. Number of variants tried against the frozen test set: 4 (all reported above). Not adopted: no re-score of anything changed except the removal of the constant features (scores are essentially unchanged).
+
+**What this means.** The event-quality model is limited by the information available per label, not by which GDELT fields it sees. Per-event credibility from GDELT fields alone sits at about 0.67 to 0.77 AUC with this many labels. Larger gains would need much more labeled data or a different kind of signal (for example, whether other outlets corroborate the same event), not more columns.

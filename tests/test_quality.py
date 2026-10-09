@@ -4,7 +4,16 @@ import pytest
 
 from tripwire.quality import score as score_module
 from tripwire.quality import train as train_module
-from tripwire.quality.features import FEATURES, build_features, domain_of
+from tripwire.quality.features import (
+    ACTOR_COLUMNS,
+    BASE,
+    CATEGORY_COLUMNS,
+    DEFAULT_GROUPS,
+    GROUPS,
+    build_features,
+    domain_of,
+    feature_names,
+)
 from tripwire.quality.train import (
     bootstrap_auc_interval,
     evaluate,
@@ -25,28 +34,71 @@ def test_domain_of():
 
 def event_row(**kw):
     row = {
-        "num_sources": 3, "num_articles": 5, "num_mentions": 7, "geo_type": 4, "is_root_event": True,
-        "goldstein": -6.5, "avg_tone": -2.0, "quad_class": 4, "actor1_name": "POLICE",
-        "actor2_name": None, "source_url": "https://www.bbc.com/a", "category": "Armed conflict",
+        "num_sources": 3, "num_articles": 5, "num_mentions": 7, "geo_type": 4,
+        "goldstein": -6.5, "avg_tone": -2.0, "quad_class": 4, "source_url": "https://www.bbc.com/a",
+        "category": "Armed conflict", "event_base_code": "190", "event_root_code": "19",
+        "country_code": "UP", "actor1_type1_code": "GOV", "actor2_type1_code": None,
+        "actor1_geo_country": "UP", "actor2_geo_country": None,
     }  # fmt: skip
     return {**row, **kw}
 
 
-def test_build_features_hand_checked_values():
-    X = build_features(pd.DataFrame([event_row()]), {"bbc.com": 9})
-    assert list(X.columns) == FEATURES
+def frame(**kw):
+    return pd.DataFrame([event_row(**kw)])
+
+
+def test_default_features_are_the_plain_set():
+    assert DEFAULT_GROUPS == ("base", "category")
+    X = build_features(frame(), {"bbc.com": 9})
+    assert list(X.columns) == BASE + CATEGORY_COLUMNS == feature_names((), DEFAULT_GROUPS)
     r = X.iloc[0]
     assert r["log_sources"] == pytest.approx(np.log(4))  # log(1 + 3)
-    assert (r["geo_type"], r["is_root"], r["quad_class"]) == (4, 1, 4)
-    assert (r["has_actor1"], r["has_actor2"]) == (1, 0)
+    assert (r["geo_type"], r["quad_class"]) == (4, 4)
     assert r["log_domain_freq"] == pytest.approx(np.log(10))  # log(1 + 9)
     assert r["cat_Armed conflict"] == 1 and r["cat_Protest & unrest"] == 0
 
 
-def test_build_features_missing_values_stay_nan_and_unknown_domain_is_zero():
-    X = build_features(pd.DataFrame([event_row(goldstein=None, source_url=None)]), {})
+def test_missing_values_stay_nan_and_unknown_domain_is_zero():
+    X = build_features(frame(goldstein=None, source_url=None), {})
     assert np.isnan(X.iloc[0]["goldstein"])
     assert X.iloc[0]["log_domain_freq"] == 0
+
+
+def test_event_code_columns():
+    X = build_features(frame(event_base_code="173"), {}, ("173", "190"), ("codes",))
+    assert list(X.columns) == ["code_173", "code_190", "code_other"]
+    assert list(X.iloc[0]) == [1, 0, 0]
+    rare = build_features(frame(event_base_code="999"), {}, ("173", "190"), ("codes",))
+    assert list(rare.iloc[0]) == [0, 0, 1]  # a code with no column of its own -> "other"
+
+
+def test_actor_and_location_columns_hand_checked():
+    def actors(**kw):
+        return build_features(frame(**kw), {}, (), ("actors",)).iloc[0]
+
+    r = actors()  # state actor 1, no actor 2, same country, a root 19 event
+    assert (r["a1_has_type"], r["a2_has_type"], r["a1_state"], r["a2_state"]) == (1, 0, 1, 0)
+    assert (r["nonmil_force"], r["a1_geo_differs"], r["a1_geo_known"]) == (0, 0, 1)
+    # a court or media actor in a force event is suspicious; a civilian victim is not
+    assert actors(actor1_type1_code="JUD")["nonmil_force"] == 1
+    assert (
+        actors(actor1_type1_code="MED", event_root_code="14")["nonmil_force"] == 0
+    )  # not a force root
+    assert actors(actor2_type1_code="CVL")["nonmil_force"] == 0
+    # location: actor based elsewhere than the event
+    assert actors(actor1_geo_country="FR")["a1_geo_differs"] == 1
+    unknown = actors(actor1_geo_country=None)
+    assert (unknown["a1_geo_differs"], unknown["a1_geo_known"]) == (
+        0,
+        0,
+    )  # unknown is not "differs"
+
+
+def test_all_groups_columns_in_a_fixed_order():
+    X = build_features(frame(), {}, ("173",), GROUPS)
+    assert list(X.columns) == feature_names(("173",), GROUPS)
+    assert X.columns[-len(ACTOR_COLUMNS) :].tolist() == ACTOR_COLUMNS
+    assert X.shape == (1, len(BASE) + len(CATEGORY_COLUMNS) + 2 + len(ACTOR_COLUMNS))
 
 
 # ---- metrics -----------------------------------------------------------------------------------
@@ -116,7 +168,7 @@ def test_train_writes_model_and_honest_metrics(conn, tmp_path):
     assert metrics["split"]["train"] + n_test == 80
     assert 10 <= n_test <= 40  # about 30% of 80, chosen by hashing ids
     assert metrics["labels"]["total"] == 80
-    assert metrics["features"] == FEATURES
+    assert metrics["features"] == feature_names((), DEFAULT_GROUPS)
     test = metrics["test"]
     assert test["model"]["roc_auc"] > 0.9  # the planted signal is found
     assert test["always_credible"]["roc_auc"] == 0.5
@@ -194,3 +246,19 @@ def test_evaluate_reports_the_ranking_metrics():
     m = evaluate(y, [0.9, 0.8, 0.7, 0.6, 0.5, 0.4])
     assert m["precision_at_60_recall"] == pytest.approx(1.0)
     assert m["precision_top_20pct"] == pytest.approx(1.0)
+
+
+def test_richer_feature_groups_train_and_score_end_to_end(conn, tmp_path):
+    seed_labeled(conn)
+    conn.execute(
+        "UPDATE events SET event_base_code = CASE WHEN global_event_id % 2 = 0 THEN '173' ELSE '190' END"
+    )
+    conn.commit()
+    metrics = train_module.train(conn, tmp_path / "m.joblib", tmp_path / "m.json", groups=GROUPS)
+    assert metrics["feature_groups"] == list(GROUPS)
+    assert set(metrics["event_codes"]) == {"173", "190"}
+    artifact = score_module.load_artifact(tmp_path / "m.joblib")
+    assert artifact["features"] == feature_names(("173", "190"), GROUPS)
+    assert (
+        score_module.score_missing(conn, artifact) == 80
+    )  # the saved model scores with the same columns

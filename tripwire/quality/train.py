@@ -31,7 +31,14 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from tripwire.db import connect
-from tripwire.quality.features import EVENT_COLUMNS, FEATURES, build_features, load_domain_counts
+from tripwire.quality.features import (
+    DEFAULT_GROUPS,
+    EVENT_COLUMNS,
+    build_features,
+    feature_names,
+    load_domain_counts,
+    top_codes,
+)
 
 SEED = 42
 MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "models"
@@ -133,13 +140,20 @@ def _mean_std(per_fold: list[dict], key: str) -> dict:
     return {"mean": float(np.mean(values)), "std": float(np.std(values))}
 
 
-def train(conn, model_path: Path = MODEL_PATH, metrics_path: Path = METRICS_PATH) -> dict:
+def train(
+    conn,
+    model_path: Path = MODEL_PATH,
+    metrics_path: Path = METRICS_PATH,
+    groups: tuple[str, ...] = DEFAULT_GROUPS,
+) -> dict:
     df = load_labeled(conn)
     y = df["label"].to_numpy()
     if len(df) < 40 or len(set(y)) < 2:
         raise ValueError(f"need at least 40 labels of both kinds, have {len(df)}")
     counts = load_domain_counts(conn)
-    X = build_features(df, counts)
+    codes = top_codes(conn) if "codes" in groups else ()
+    X = build_features(df, counts, codes, groups)
+    names = feature_names(codes, groups)
 
     # Frozen split: the test part is decided by a hash of the event id (see is_test_event).
     in_test = df["global_event_id"].map(is_test_event).to_numpy()
@@ -159,13 +173,15 @@ def train(conn, model_path: Path = MODEL_PATH, metrics_path: Path = METRICS_PATH
     # The test part is used once, with the model fitted on the training part.
     model = make_model().fit(X_train, y_train)
     test_proba = model.predict_proba(X_test)[:, 1]
-    coefficients = dict(zip(FEATURES, model.named_steps["model"].coef_[0].round(3), strict=True))
+    coefficients = dict(zip(names, model.named_steps["model"].coef_[0].round(3), strict=True))
 
     metrics = {
         "trained_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "seed": SEED,
         "model": "logistic regression (median imputer + standard scaler)",
-        "features": FEATURES,
+        "features": names,
+        "feature_groups": list(groups),
+        "event_codes": list(codes),
         "labels": {"total": len(y), "credible": int(y.sum()), "share_credible": float(y.mean())},
         "split": {"train": len(y_train), "test": len(y_test), "method": "hash of event id"},
         "cross_validation_on_train_5fold": {
@@ -195,7 +211,15 @@ def train(conn, model_path: Path = MODEL_PATH, metrics_path: Path = METRICS_PATH
     final = make_model().fit(X, y)  # the model that scores events: all the labels we have
     model_path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(
-        {"model": final, "features": FEATURES, "domain_counts": counts, "seed": SEED}, model_path
+        {
+            "model": final,
+            "features": names,
+            "groups": groups,
+            "code_levels": codes,
+            "domain_counts": counts,
+            "seed": SEED,
+        },
+        model_path,
     )
     metrics_path.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     return metrics

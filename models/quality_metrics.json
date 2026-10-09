@@ -1,5 +1,5 @@
 {
-  "trained_at": "2026-10-09T20:01:15+00:00",
+  "trained_at": "2026-10-09T21:21:32+00:00",
   "seed": 42,
   "model": "logistic regression (median imputer + standard scaler)",
   "features": [
@@ -7,12 +7,9 @@
     "log_articles",
     "log_mentions",
     "geo_type",
-    "is_root",
     "goldstein",
     "avg_tone",
     "quad_class",
-    "has_actor1",
-    "has_actor2",
     "log_domain_freq",
     "cat_Protest & unrest",
     "cat_Threats & coercion",
@@ -20,6 +17,11 @@
     "cat_Armed conflict",
     "cat_Mass violence"
   ],
+  "feature_groups": [
+    "base",
+    "category"
+  ],
+  "event_codes": [],
   "labels": {
     "total": 312,
     "credible": 125,
@@ -33,28 +35,28 @@
   "cross_validation_on_train_5fold": {
     "model": {
       "precision": {
-        "mean": 0.6457164404223228,
-        "std": 0.06073021556936759
+        "mean": 0.6805128205128205,
+        "std": 0.06928962360637758
       },
       "recall": {
-        "mean": 0.6235294117647059,
-        "std": 0.10910139406465534
+        "mean": 0.6470588235294118,
+        "std": 0.13413828530578092
       },
       "f1": {
-        "mean": 0.6311287758346582,
-        "std": 0.07632620422102744
+        "mean": 0.6564206840068909,
+        "std": 0.08895791694990043
       },
       "roc_auc": {
-        "mean": 0.7631764705882352,
-        "std": 0.040664823071641466
+        "mean": 0.7674117647058823,
+        "std": 0.05023752118863726
       },
       "precision_at_60_recall": {
-        "mean": 0.6638458110516934,
-        "std": 0.06550328538544846
+        "mean": 0.6624999999999999,
+        "std": 0.06770032003863302
       },
       "precision_top_20pct": {
-        "mean": 0.6444444444444444,
-        "std": 0.0831479419283098
+        "mean": 0.711111111111111,
+        "std": 0.054433105395181765
       }
     },
     "always_credible": {
@@ -75,23 +77,23 @@
   "test": {
     "model": {
       "n": 106,
-      "precision": 0.5142857142857142,
-      "recall": 0.45,
-      "f1": 0.48,
-      "accuracy": 0.6320754716981132,
-      "roc_auc": 0.6696969696969697,
-      "precision_at_60_recall": 0.5102040816326531,
-      "precision_top_20pct": 0.4090909090909091,
+      "precision": 0.5,
+      "recall": 0.5,
+      "f1": 0.5,
+      "accuracy": 0.6226415094339622,
+      "roc_auc": 0.6757575757575758,
+      "precision_at_60_recall": 0.5074626865671642,
+      "precision_top_20pct": 0.5,
       "confusion_matrix": {
-        "tn": 49,
-        "fp": 17,
-        "fn": 22,
-        "tp": 18
+        "tn": 46,
+        "fp": 20,
+        "fn": 20,
+        "tp": 20
       }
     },
     "roc_auc_95_interval": [
-      0.5549974555549579,
-      0.7687220716723822
+      0.5652390043139783,
+      0.7710061305445366
     ],
     "always_credible": {
       "n": 106,
@@ -127,22 +129,19 @@
     }
   },
   "coefficients_standardized": {
-    "log_sources": -0.409,
-    "log_articles": -0.009,
-    "log_mentions": 0.214,
-    "geo_type": 0.435,
-    "is_root": 0.0,
-    "goldstein": 0.497,
-    "avg_tone": -0.637,
-    "quad_class": 0.162,
-    "has_actor1": 0.14,
-    "has_actor2": 0.2,
-    "log_domain_freq": 0.143,
+    "log_sources": -0.359,
+    "log_articles": -0.027,
+    "log_mentions": 0.208,
+    "geo_type": 0.457,
+    "goldstein": 0.483,
+    "avg_tone": -0.6,
+    "quad_class": 0.218,
+    "log_domain_freq": 0.158,
     "cat_Protest & unrest": 0.605,
-    "cat_Threats & coercion": -0.092,
-    "cat_Force posture": -0.038,
-    "cat_Armed conflict": 0.324,
-    "cat_Mass violence": -0.824
+    "cat_Threats & coercion": -0.079,
+    "cat_Force posture": -0.06,
+    "cat_Armed conflict": 0.299,
+    "cat_Mass violence": -0.792
   },
   "note": "Reported metrics come from the model fitted on the training split. The saved model is refitted on all labels, so it has seen the test rows and is not evaluated again."
 }

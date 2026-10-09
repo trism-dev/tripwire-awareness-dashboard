@@ -8,7 +8,7 @@ import pandas as pd
 import psycopg
 
 from tripwire.db import connect
-from tripwire.quality.features import EVENT_COLUMNS, FEATURES, build_features
+from tripwire.quality.features import EVENT_COLUMNS, build_features, feature_names
 from tripwire.quality.train import MODEL_PATH
 
 
@@ -19,8 +19,12 @@ def load_artifact(path: Path = MODEL_PATH) -> dict | None:
 
 def score_frame(artifact: dict, events: pd.DataFrame) -> pd.Series:
     """Probability each event is credible, indexed like `events`."""
-    X = build_features(events, artifact["domain_counts"])
-    assert list(X.columns) == artifact["features"] == FEATURES  # model and code must agree
+    X = build_features(
+        events, artifact["domain_counts"], artifact["code_levels"], artifact["groups"]
+    )
+    # the model and the code must agree on exactly which inputs there are, in which order
+    assert list(X.columns) == artifact["features"]
+    assert artifact["features"] == feature_names(artifact["code_levels"], artifact["groups"])
     return pd.Series(artifact["model"].predict_proba(X)[:, 1], index=events.index)
 
 

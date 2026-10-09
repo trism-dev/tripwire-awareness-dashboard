@@ -142,3 +142,9 @@
 - **Re-render:** `npx @mermaid-js/mermaid-cli -i docs/diagrams/X.mmd -o docs/X.png -s 2 -b white` (set `PUPPETEER_SKIP_DOWNLOAD=1` and a puppeteer config pointing at Chrome).
 - **Ingestion flow** is a flowchart with BPMN-style start/end events and gateways rather than strict BPMN notation. The first version was 5,356 px tall; merging the linear parse/filter/categorize/upsert steps cut it to 3,628.
 - **Keep in sync:** the diagrams describe the current code (24 h catch-up, 60-day retention, 61-field rows, ledger statuses ok/missing/error). Change them with the code.
+
+## 2026-10-10: Richer event features measured and rejected; frozen test split
+- **Decision:** keep the plain feature set (base + category) for the quality model. Event codes and actor/location features were built, tested and measured (4 variants, rule fixed beforehand) and made the model worse (CV AUC 0.767 down to 0.730 with everything).
+- **Frozen split:** test set = events whose id hashes into buckets 0-2 of 10 (`is_test_event`). Metrics are now comparable across runs and across label counts. The test estimate moves by about +/-0.04 with which events land in it, so only larger improvements count.
+- **Kept anyway:** migration 002 columns and the `codes`/`actors` feature groups (off by default, tested end to end). Cheap to keep, and they are the starting point if many more labels arrive.
+- **Cost of the experiment:** the 58-day re-ingest (about 80 min of downloads); `backfill --reingest` stays as a tool.
