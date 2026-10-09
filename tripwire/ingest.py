@@ -40,6 +40,13 @@ _COLUMN_MAP = {
     "lon": "ActionGeo_Long",
     "source_url": "SOURCEURL",
     "category": "category",
+    "actor1_code": "Actor1Code",
+    "actor2_code": "Actor2Code",
+    "actor1_type1_code": "Actor1Type1Code",
+    "actor2_type1_code": "Actor2Type1Code",
+    "actor1_geo_country": "Actor1Geo_CountryCode",
+    "actor2_geo_country": "Actor2Geo_CountryCode",
+    "action_adm1_code": "ActionGeo_ADM1Code",
 }
 # event_date and is_root_event are derived, so they are added separately below.
 EVENT_COLUMNS = ["event_date", "is_root_event", *_COLUMN_MAP]
@@ -101,15 +108,16 @@ def _record(conn, url, status, md5=None, rows_raw=None, rows_kept=None, error=No
     conn.commit()
 
 
-def ingest_url(conn, url, md5=None, fetch=fetch_download, settings=None) -> str:
+def ingest_url(conn, url, md5=None, fetch=fetch_download, settings=None, force=False) -> str:
     """Download, check, parse, filter, categorize and upsert one file.
 
     Never raises for a bad file: the problem is written to ingest_files and the status is returned
-    ('ok', 'skipped', 'missing' or 'error'). Files already ok/missing are not downloaded again.
+    ('ok', 'skipped', 'missing' or 'error'). Files already ok/missing are not downloaded again,
+    unless force=True (used to re-read files after new columns were added).
     """
     settings = settings or load_settings()
     seen = conn.execute("SELECT status FROM ingest_files WHERE file_url = %s", (url,)).fetchone()
-    if seen and seen[0] in ("ok", "missing"):
+    if seen and seen[0] in ("ok", "missing") and not force:
         return "skipped"
     try:
         data = fetch(url)

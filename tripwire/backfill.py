@@ -16,12 +16,14 @@ log = logging.getLogger(__name__)
 RECENT_MARGIN = timedelta(hours=1)
 
 
-def backfill(conn, days=30, delay=0.5, fetch=download, now=None, sleep=time.sleep) -> dict:
+def backfill(
+    conn, days=30, delay=0.5, fetch=download, now=None, sleep=time.sleep, reingest=False
+) -> dict:
     now = now or datetime.now(UTC)
     slots = slots_between(now - timedelta(days=days), now - RECENT_MARGIN)
     counts: dict[str, int] = {}
     for i, slot in enumerate(slots, 1):
-        status = ingest_url(conn, file_url(slot), fetch=fetch)
+        status = ingest_url(conn, file_url(slot), fetch=fetch, force=reingest)
         counts[status] = counts.get(status, 0) + 1
         if status != "skipped":
             sleep(delay)  # one request at a time, with a pause: be polite to GDELT
@@ -35,6 +37,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--days", type=int, default=30)
     ap.add_argument("--delay", type=float, default=0.5, help="seconds between downloads")
+    ap.add_argument(
+        "--reingest",
+        action="store_true",
+        help="re-read files already loaded (after new columns were added); safe to repeat",
+    )
     args = ap.parse_args()
     with connect() as c:
-        print(backfill(c, args.days, args.delay))
+        print(backfill(c, args.days, args.delay, reingest=args.reingest))

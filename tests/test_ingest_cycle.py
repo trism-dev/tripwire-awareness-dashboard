@@ -115,3 +115,21 @@ def test_backfill_walks_slots_skips_done_files_and_pauses_politely(conn):
     assert backfill(conn, days=1 / 8, fetch=fetch2, now=now, sleep=pauses2.append) == {"skipped": 9}
     assert fetch2.calls == [] and pauses2 == []
     assert event_count(conn) == 3  # same 3 events in every file -> still 3 rows
+
+
+def test_force_rereads_a_file_that_was_already_loaded(conn):
+    fetch = FakeFetch(good_zip())
+    assert ingest_url(conn, URL, fetch=fetch, settings=SETTINGS) == "ok"
+    assert ingest_url(conn, URL, fetch=fetch, settings=SETTINGS) == "skipped"
+    assert ingest_url(conn, URL, fetch=fetch, settings=SETTINGS, force=True) == "ok"
+    assert len(fetch.calls) == 2  # downloaded again only when forced
+    assert event_count(conn) == 3  # and still no duplicates
+
+
+def test_backfill_reingest_downloads_files_again(conn):
+    now = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
+    first = FakeFetch(good_zip())
+    backfill(conn, days=1 / 8, fetch=first, now=now, sleep=lambda s: None)
+    again = FakeFetch(good_zip())
+    counts = backfill(conn, days=1 / 8, fetch=again, now=now, sleep=lambda s: None, reingest=True)
+    assert counts == {"ok": 9} and len(again.calls) == 9
