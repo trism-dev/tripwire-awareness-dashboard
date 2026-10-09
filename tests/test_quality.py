@@ -5,7 +5,13 @@ import pytest
 from tripwire.quality import score as score_module
 from tripwire.quality import train as train_module
 from tripwire.quality.features import FEATURES, build_features, domain_of
-from tripwire.quality.train import bootstrap_auc_interval, evaluate
+from tripwire.quality.train import (
+    bootstrap_auc_interval,
+    evaluate,
+    is_test_event,
+    precision_at_recall,
+    precision_in_top,
+)
 
 # ---- features ----------------------------------------------------------------------------------
 
@@ -106,7 +112,9 @@ def test_train_writes_model_and_honest_metrics(conn, tmp_path):
     seed_labeled(conn)
     metrics = train_module.train(conn, tmp_path / "m.joblib", tmp_path / "m.json")
     assert (tmp_path / "m.joblib").exists() and (tmp_path / "m.json").exists()
-    assert metrics["split"] == {"train": 56, "test": 24}  # 70 / 30 of 80
+    n_test = metrics["split"]["test"]
+    assert metrics["split"]["train"] + n_test == 80
+    assert 10 <= n_test <= 40  # about 30% of 80, chosen by hashing ids
     assert metrics["labels"]["total"] == 80
     assert metrics["features"] == FEATURES
     test = metrics["test"]
@@ -114,7 +122,7 @@ def test_train_writes_model_and_honest_metrics(conn, tmp_path):
     assert test["always_credible"]["roc_auc"] == 0.5
     assert test["always_credible"]["recall"] == 1.0
     cm = test["model"]["confusion_matrix"]
-    assert sum(cm.values()) == 24  # every test row is counted exactly once
+    assert sum(cm.values()) == n_test  # every test row is counted exactly once
 
 
 def test_train_refuses_too_few_labels(conn, tmp_path):
@@ -147,3 +155,42 @@ def test_score_missing_only_fills_empty_scores(conn, tmp_path):
 
 def test_no_model_file_means_no_artifact(tmp_path):
     assert score_module.load_artifact(tmp_path / "missing.joblib") is None
+
+
+# ---- frozen split and ranking metrics --------------------------------------------------------
+
+
+def test_frozen_split_is_deterministic_about_30_percent_and_independent_of_other_rows():
+    ids = list(range(1_326_000_000, 1_326_010_000))
+    flags = [is_test_event(i) for i in ids]
+    assert flags == [is_test_event(i) for i in ids]  # same answer every time
+    assert 0.27 < sum(flags) / len(flags) < 0.33
+    # an event's side never depends on which other events exist
+    assert [is_test_event(i) for i in ids[:50]] == flags[:50]
+
+
+def test_precision_at_recall_hand_computed():
+    y = [1, 1, 0, 1, 0, 0]
+    proba = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4]
+    # top 2 are both credible: 2 of 3 credible found (recall 0.67 >= 0.6) at precision 1.0
+    assert precision_at_recall(y, proba, 0.6) == pytest.approx(1.0)
+    # to find all 3 credible you must go down to 0.6: 3 of 4 chosen are credible
+    assert precision_at_recall(y, proba, 1.0) == pytest.approx(0.75)
+    assert (
+        precision_at_recall([1, 1, 1], [0.1, 0.2, 0.3]) == 0.0
+    )  # one class: undefined, reported 0
+
+
+def test_precision_in_top_hand_computed_and_ties():
+    y = np.array([1, 1, 0, 1, 0, 0, 0, 0, 0, 0])
+    proba = np.array([0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05])
+    assert precision_in_top(y, proba, 0.2) == pytest.approx(1.0)  # top 2: both credible
+    assert precision_in_top(y, proba, 0.4) == pytest.approx(0.75)  # top 4: 3 credible
+    assert precision_in_top(y, np.ones(10), 0.2) == pytest.approx(0.3)  # all tied: the base rate
+
+
+def test_evaluate_reports_the_ranking_metrics():
+    y = [1, 1, 0, 1, 0, 0]
+    m = evaluate(y, [0.9, 0.8, 0.7, 0.6, 0.5, 0.4])
+    assert m["precision_at_60_recall"] == pytest.approx(1.0)
+    assert m["precision_top_20pct"] == pytest.approx(1.0)

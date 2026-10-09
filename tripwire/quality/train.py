@@ -2,9 +2,11 @@
 
 Label = 1 if a hand-labeled event is credible. Model = logistic regression. Every number reported
 here is computed on data the model did not train on: 5-fold cross-validation inside the training
-split, and a 30% test split that is touched once.
+part, and a test part (about 30%) that is touched once. The test part is chosen by a hash of the
+event id, so it is FROZEN: labeling more events never moves an old test row into training.
 """
 
+import hashlib
 import json
 import sys
 from datetime import UTC, datetime
@@ -19,11 +21,12 @@ from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
     f1_score,
+    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
@@ -34,6 +37,15 @@ SEED = 42
 MODEL_DIR = Path(__file__).resolve().parent.parent.parent / "models"
 MODEL_PATH = MODEL_DIR / "quality_model.joblib"
 METRICS_PATH = MODEL_DIR / "quality_metrics.json"
+
+
+TEST_BUCKETS = 3  # of 10: events whose id hashes into buckets 0-2 are the frozen test set
+
+
+def is_test_event(event_id: int) -> bool:
+    """True if this event belongs to the frozen test set. A pure function of the id."""
+    bucket = int(hashlib.md5(str(int(event_id)).encode()).hexdigest(), 16) % 10
+    return bucket < TEST_BUCKETS
 
 
 def make_model() -> Pipeline:
@@ -58,6 +70,25 @@ def load_labeled(conn) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=names)
 
 
+def precision_at_recall(y_true, proba, recall_target: float = 0.6) -> float:
+    """Best precision achievable while still finding at least `recall_target` of the credible events.
+    'If I want most of the good events, how clean is my pile?'"""
+    y_true = np.asarray(y_true)
+    if len(set(y_true)) < 2:
+        return 0.0
+    precision, recall, _ = precision_recall_curve(y_true, proba)
+    ok = precision[recall >= recall_target]
+    return float(ok.max()) if ok.size else 0.0
+
+
+def precision_in_top(y_true, proba, fraction: float = 0.2) -> float:
+    """Share of credible events among the top `fraction` by score (ties are all included, so a
+    model that scores everything the same gets the plain base rate)."""
+    y_true, proba = np.asarray(y_true), np.asarray(proba)
+    chosen = proba >= np.quantile(proba, 1 - fraction)
+    return float(y_true[chosen].mean())
+
+
 def evaluate(y_true, proba, threshold: float = 0.5) -> dict:
     """The standard report for one set of predictions (positive class = credible)."""
     y_true = np.asarray(y_true)
@@ -71,6 +102,8 @@ def evaluate(y_true, proba, threshold: float = 0.5) -> dict:
         "f1": float(f1_score(y_true, pred, zero_division=0)),
         "accuracy": float(accuracy_score(y_true, pred)),
         "roc_auc": float(roc_auc_score(y_true, proba)) if both_classes else None,
+        "precision_at_60_recall": precision_at_recall(y_true, proba, 0.6),
+        "precision_top_20pct": precision_in_top(y_true, proba, 0.2),
         "confusion_matrix": {"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)},
     }
 
@@ -108,10 +141,10 @@ def train(conn, model_path: Path = MODEL_PATH, metrics_path: Path = METRICS_PATH
     counts = load_domain_counts(conn)
     X = build_features(df, counts)
 
-    # 70/30 split, stratified so both parts keep the same credible share. Fixed seed.
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, stratify=y, random_state=SEED
-    )
+    # Frozen split: the test part is decided by a hash of the event id (see is_test_event).
+    in_test = df["global_event_id"].map(is_test_event).to_numpy()
+    X_train, X_test = X[~in_test], X[in_test]
+    y_train, y_test = y[~in_test], y[in_test]
 
     # 5-fold cross-validation on the TRAINING part only: model vs always-credible, fold by fold.
     folds, base_folds = [], []
@@ -134,9 +167,19 @@ def train(conn, model_path: Path = MODEL_PATH, metrics_path: Path = METRICS_PATH
         "model": "logistic regression (median imputer + standard scaler)",
         "features": FEATURES,
         "labels": {"total": len(y), "credible": int(y.sum()), "share_credible": float(y.mean())},
-        "split": {"train": len(y_train), "test": len(y_test)},
+        "split": {"train": len(y_train), "test": len(y_test), "method": "hash of event id"},
         "cross_validation_on_train_5fold": {
-            "model": {k: _mean_std(folds, k) for k in ("precision", "recall", "f1", "roc_auc")},
+            "model": {
+                k: _mean_std(folds, k)
+                for k in (
+                    "precision",
+                    "recall",
+                    "f1",
+                    "roc_auc",
+                    "precision_at_60_recall",
+                    "precision_top_20pct",
+                )
+            },
             "always_credible": {k: _mean_std(base_folds, k) for k in ("precision", "recall", "f1")},
         },
         "test": {
@@ -170,7 +213,8 @@ if __name__ == "__main__":
     for name in ("model", "always_credible", "rule_geo_type_at_least_3"):
         m = t[name]
         print(
-            f"TEST {name:26s} P {m['precision']:.2f}  R {m['recall']:.2f}  F1 {m['f1']:.2f}  AUC {m['roc_auc']}  {m['confusion_matrix']}"
+            f"TEST {name:26s} P {m['precision']:.2f}  R {m['recall']:.2f}  F1 {m['f1']:.2f}  AUC {m['roc_auc']}  "
+            f"P@60%recall {m['precision_at_60_recall']:.2f}  P@top20% {m['precision_top_20pct']:.2f}  {m['confusion_matrix']}"
         )
     print("TEST AUC 95% interval:", [round(x, 2) for x in t["roc_auc_95_interval"]])
     sys.stdout.flush()
