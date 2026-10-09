@@ -136,3 +136,9 @@
 - **Formula injection:** GDELT text is untrusted and a spreadsheet treats a cell starting with `=`, `+`, `-` or `@` as a formula, so text columns get a leading apostrophe. Numeric columns (a negative Goldstein score) are left alone.
 - **Attribution:** carried in the file name (`tripwire-gdelt-events-...csv`) and the button help text; a CSV has no place for a footer.
 - **Retention:** every worker pass deletes events older than `RETENTION_DAYS` (60) that have no label, in batches of 20,000, and trims `ingest_files` to the same age. Labeled events are kept forever because they are the classifier's training data (this closes the risk logged on 2026-10-08). First run removes the roughly 7,500 events from the first backfill day.
+
+## 2026-10-09: Diagrams
+- **Decision:** three Mermaid sources in `docs/diagrams/` (architecture, ERD, ingestion flow) rendered to `docs/*.png` with the Mermaid CLI through `npx`, using the installed Chrome. Nothing was added to the project's dependencies.
+- **Re-render:** `npx @mermaid-js/mermaid-cli -i docs/diagrams/X.mmd -o docs/X.png -s 2 -b white` (set `PUPPETEER_SKIP_DOWNLOAD=1` and a puppeteer config pointing at Chrome).
+- **Ingestion flow** is a flowchart with BPMN-style start/end events and gateways rather than strict BPMN notation. The first version was 5,356 px tall; merging the linear parse/filter/categorize/upsert steps cut it to 3,628.
+- **Keep in sync:** the diagrams describe the current code (24 h catch-up, 60-day retention, 61-field rows, ledger statuses ok/missing/error). Change them with the code.

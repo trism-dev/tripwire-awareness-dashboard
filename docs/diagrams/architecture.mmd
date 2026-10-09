@@ -1,0 +1,30 @@
+flowchart LR
+    U(["Analyst"])
+    subgraph GDELT["GDELT Project (public)"]
+        MAN["lastupdate.txt<br/>newest file + md5"]
+        FILES["15-minute event files<br/>zipped, tab-delimited"]
+    end
+    subgraph HOST["Docker Compose locally / Railway hosted"]
+        subgraph WORKER["worker - one pass every 15 min"]
+            ING["1 Ingest<br/>fetch, check, parse,<br/>filter, categorize, upsert"]
+            SPK["2 Spike detection<br/>yesterday + today"]
+            SCR["3 Quality scoring<br/>new events only"]
+            RET["4 Retention<br/>60 days, spares labeled events"]
+        end
+        DB[("Postgres 16<br/>events - spikes<br/>ingest_files - labels")]
+        APP["Streamlit app<br/>map - alerts - trend<br/>events table - CSV export"]
+    end
+    LBL["Label page<br/>local use only"]
+    TRN["make train<br/>logistic regression<br/>honest evaluation"]
+    MDL[["quality_model.joblib<br/>+ quality_metrics.json"]]
+
+    MAN --> ING
+    FILES --> ING
+    ING --> DB
+    DB --> SPK --> DB
+    DB --> SCR --> DB
+    DB --> RET --> DB
+    DB --> APP --> U
+    U --> LBL --> DB
+    DB -- "labels" --> TRN --> MDL
+    MDL -- "model" --> SCR

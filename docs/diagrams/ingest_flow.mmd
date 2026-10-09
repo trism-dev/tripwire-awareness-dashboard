@@ -1,0 +1,26 @@
+flowchart TD
+    START(("Timer<br/>every 15 min")) --> OPEN["Open DB connection,<br/>apply migrations"]
+    OPEN -->|"DB unreachable"| WAIT1(["Log, sleep 15 min,<br/>try again"])
+    OPEN --> CATCH["Catch-up: every 15-min slot<br/>in the last 24 h,<br/>then the newest file<br/>from lastupdate.txt"]
+    CATCH -->|"manifest unreadable"| LOGM["Log error<br/>(no ledger row)"]
+
+    subgraph FILE["Ingest ONE file"]
+        ONE{"Already in ingest_files<br/>as ok or missing?"}
+        ONE -->|"yes"| SKIP(["Skip: no download"])
+        ONE -->|"no"| DL["Download<br/>3 tries, backoff"]
+        DL --> HTTP{"Result?"}
+        HTTP -->|"404"| MISS["Ledger: missing<br/>never retried"]
+        HTTP -->|"other failure"| ERR["Ledger: error<br/>retried next pass"]
+        HTTP -->|"received"| CHK{"md5 matches (newest file)<br/>and zip valid?"}
+        CHK -->|"no"| ERR
+        CHK -->|"yes"| WORK["Parse (61 fields, count bad rows),<br/>filter, categorize,<br/>upsert (safe to repeat)"]
+        WORK --> OK["Ledger: ok<br/>rows_raw, rows_kept"]
+    end
+    CATCH --> ONE
+
+    OK --> NEXT
+    MISS --> NEXT
+    ERR --> NEXT
+    SKIP --> NEXT
+    LOGM --> NEXT
+    NEXT["Then, each in its own try/except<br/>so a failure is logged, never fatal:<br/>1 spike detection (yesterday + today)<br/>2 quality scoring (new events)<br/>3 retention (60 days, spares labeled)"] --> SLEEP(["Sleep 15 min"])

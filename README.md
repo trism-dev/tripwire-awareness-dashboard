@@ -29,6 +29,26 @@ quality classifier from your labels), `make score` (score events that have no qu
 classifier. It writes to the database, so it only works when `ENABLE_LABELING=1` is set (on by default
 in `.env.example` and the local Docker app; leave it unset on any public host).
 
+## How it works
+
+![Architecture](docs/architecture.png)
+
+A worker polls GDELT every 15 minutes and stores conflict and unrest events in Postgres. The same
+pass detects spikes, scores event quality with a small model, and deletes old events (never the
+hand-labeled ones). A Streamlit app reads the database. Diagram sources are in `docs/diagrams/`.
+
+<details><summary>Database tables</summary>
+
+![ERD](docs/erd.png)
+
+</details>
+
+<details><summary>One ingestion pass, including failure paths</summary>
+
+![Ingestion flow](docs/ingest_flow.png)
+
+</details>
+
 ## Data
 
 Event data: [The GDELT Project](https://www.gdeltproject.org/). GDELT is free to use with attribution.

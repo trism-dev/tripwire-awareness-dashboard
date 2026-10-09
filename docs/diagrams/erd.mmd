@@ -1,0 +1,56 @@
+erDiagram
+    events ||--o| labels : "may be hand-labeled"
+    events {
+        bigint global_event_id PK
+        date event_date
+        timestamptz date_added "UTC"
+        text actor1_name
+        text actor1_country
+        text actor2_name
+        text actor2_country
+        text event_code
+        text event_base_code
+        text event_root_code
+        smallint quad_class
+        real goldstein
+        int num_mentions
+        int num_sources
+        int num_articles
+        real avg_tone
+        smallint geo_type
+        text geo_fullname
+        text country_code "FIPS 10-4, not ISO"
+        double lat
+        double lon
+        boolean is_root_event
+        text source_url "link out only"
+        text category "derived from CAMEO root code"
+        real quality_score "derived by the quality model"
+        timestamptz ingested_at
+    }
+    labels {
+        bigint global_event_id PK, FK
+        smallint label "0 or 1"
+        text note
+        timestamptz labeled_at
+    }
+    spikes {
+        serial id PK
+        text country_code
+        text category
+        date day
+        int count "distinct articles"
+        real baseline_median
+        real baseline_mad
+        real z
+        timestamptz created_at
+    }
+    ingest_files {
+        text file_url PK
+        text md5
+        int rows_raw
+        int rows_kept
+        text status "ok, missing, error"
+        text error
+        timestamptz processed_at
+    }
