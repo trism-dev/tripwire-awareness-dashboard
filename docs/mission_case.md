@@ -33,11 +33,13 @@ much can I trust it?**
 
 Measured, and written up with the numbers in `docs/evaluation.md`:
 
-- **Spike alerts:** 298 fired over 32 days (about 9 a day). In a hand check of 10 alerts, **3 were
-  clearly real, 1 unclear, 6 not** (target was 7). The misses were mostly misread event types
-  (court cases and business stories coded as military force) and one real story counted as several
-  alerts in different countries. Counting articles instead of rows already removed 40% of the
-  earlier alerts, including a Tunisia alert that was 17 rows from a single article.
+- **Spike alerts:** about 10 fire a day. In a hand audit of 50 alerts, **30 were real, 19 not,
+  1 unclear: roughly 6 in 10 are real** (95% interval 47% to 74%). The false ones are mostly event
+  types misread in the source data (court cases, tests or arrests coded as violence), old events
+  being rehashed, and the same story alerted again on later days. Counting distinct articles instead
+  of event rows already removed 40% of the earlier alerts, including a Tunisia alert that was 17 rows
+  from a single article. Every tested tweak (stricter thresholds, other rankings, filtering by the
+  quality score) either lost real alerts or failed on a held-back test set, so none was adopted.
 - **Quality model:** ranks events better than chance (ROC-AUC 0.71, plausible range 0.61 to 0.81)
   and is right 56% of the time when it calls an event credible, against 40% by chance. It did **not**
   meet the target of beating "always say credible" on F1.
@@ -52,8 +54,8 @@ Measured, and written up with the numbers in `docs/evaluation.md`:
 
 ## Next steps
 
-1. Group alerts that share the same source articles into one incident (the Houthi shipping story
-   raised four alerts).
+1. Make verification faster: show each alert's best-sourced articles and event types right in the
+   Alerts tab, so the analyst can confirm or reject it in seconds.
 2. Use the quality score on the alert list, once a stronger model exists. Filtering by it today
    did not improve the alerts.
 3. More and more varied labels, especially events reported by several sources, which the model

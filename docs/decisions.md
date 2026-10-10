@@ -15,7 +15,7 @@
 ## 2026-10-04: "Cooperation" bucket for CAMEO roots 01-08
 - **Decision:** `categories.py` maps roots 01-08 to a `Cooperation` category.
 - **Alternatives:** leave 01-08 unmapped.
-- **Why:** the PRD test requires every root 01-20 to map to exactly one bucket, but ยง5.3 only lists conflict roots. These rows never survive the QuadClass 3/4 filter, so the bucket is only for completeness.
+- **Why:** the PRD test requires every root 01-20 to map to exactly one bucket, but ง5.3 only lists conflict roots. These rows never survive the QuadClass 3/4 filter, so the bucket is only for completeness.
 
 ## 2026-10-04: Country-centroid events (ActionGeo_Type 1) pass the ingest filter
 - **Decision:** `filter_events` keeps them; the map query will exclude `geo_type < 2` by default.
@@ -148,3 +148,10 @@
 - **Frozen split:** test set = events whose id hashes into buckets 0-2 of 10 (`is_test_event`). Metrics are now comparable across runs and across label counts. The test estimate moves by about +/-0.04 with which events land in it, so only larger improvements count.
 - **Kept anyway:** migration 002 columns and the `codes`/`actors` feature groups (off by default, tested end to end). Cheap to keep, and they are the starting point if many more labels arrive.
 - **Cost of the experiment:** the 58-day re-ingest (about 80 min of downloads); `backfill --reingest` stays as a tool.
+
+## 2026-10-10: Alert detector left unchanged after a 50-alert audit
+- **Decision:** no change to the floor (10 articles), score threshold (3), ranking or counting. The default ranking stays "Score".
+- **Why:** hand-judged precision is 61% (30 of 49); every tested tweak either lost real alerts or failed on the untouched final set (table in `docs/evaluation.md`). Two ideas passed their pre-set rule on the dev set and then failed on the final set, which is the intended safeguard working.
+- **Process:** adoption rules were written before each run; the final split (20 alerts) was opened exactly once; no labeled event lies inside any dev spike (checked), so the quality-filter test had no leakage.
+- **Limit:** 50 judged alerts cannot detect improvements smaller than about 15 points. The final split is spent.
+- **Not built:** grouping alerts by shared articles (the judged duplicates are on different days, so it would not help).

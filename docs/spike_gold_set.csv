@@ -9,43 +9,43 @@ day,country_code,category,verdict,reason,split
 2026-09-11,YM,Armed conflict,No,duplicate_story,dev
 2026-09-23,MU,Armed conflict,Yes,,dev
 2026-09-29,WE,Armed conflict,Yes,,dev
-2026-09-22,RW,Armed conflict,,,dev
-2026-09-23,CT,Threats & coercion,,,final
-2026-09-22,TU,Armed conflict,,,dev
-2026-09-16,YM,Threats & coercion,,,final
-2026-09-25,IS,Protest & unrest,,,dev
-2026-09-29,FR,Protest & unrest,,,final
-2026-09-30,FJ,Threats & coercion,,,dev
-2026-09-11,DJ,Armed conflict,,,final
-2026-09-08,IS,Threats & coercion,,,dev
-2026-09-23,CH,Protest & unrest,,,final
-2026-10-03,KN,Armed conflict,,,dev
-2026-09-08,AR,Threats & coercion,,,final
-2026-09-15,DJ,Threats & coercion,,,dev
-2026-09-20,PK,Protest & unrest,,,final
-2026-10-07,IS,Armed conflict,,,final
-2026-09-09,AE,Threats & coercion,,,dev
-2026-09-25,IN,Protest & unrest,,,final
-2026-09-22,CE,Threats & coercion,,,dev
-2026-10-07,PL,Threats & coercion,,,final
-2026-09-07,LE,Armed conflict,,,dev
-2026-10-07,PL,Armed conflict,,,final
-2026-10-08,EI,Protest & unrest,,,dev
-2026-09-13,YM,Threats & coercion,,,final
-2026-09-18,SY,Threats & coercion,,,dev
-2026-09-08,YM,Threats & coercion,,,final
-2026-09-14,SA,Armed conflict,,,dev
-2026-10-04,JA,Threats & coercion,,,final
-2026-09-20,YM,Threats & coercion,,,dev
-2026-09-08,SA,Threats & coercion,,,final
-2026-09-18,NI,Protest & unrest,,,dev
-2026-10-05,JA,Threats & coercion,,,final
-2026-09-09,ZI,Threats & coercion,,,dev
-2026-09-21,KS,Armed conflict,,,final
-2026-09-12,DJ,Armed conflict,,,dev
-2026-09-14,TU,Armed conflict,,,final
-2026-09-21,HA,Armed conflict,,,dev
-2026-10-06,TU,Armed conflict,,,final
-2026-10-08,SA,Armed conflict,,,dev
-2026-09-15,YM,Armed conflict,,,final
-2026-09-21,DJ,Threats & coercion,,,dev
+2026-09-22,RW,Armed conflict,No,misread_type,dev
+2026-09-23,CT,Threats & coercion,Yes,,final
+2026-09-22,TU,Armed conflict,Yes,,dev
+2026-09-16,YM,Threats & coercion,Yes,,final
+2026-09-25,IS,Protest & unrest,No,wrong_place,dev
+2026-09-29,FR,Protest & unrest,Yes,,final
+2026-09-30,FJ,Threats & coercion,Yes,,dev
+2026-09-11,DJ,Armed conflict,Yes,,final
+2026-09-08,IS,Threats & coercion,Yes,,dev
+2026-09-23,CH,Protest & unrest,Yes,,final
+2026-10-03,KN,Armed conflict,No,misread_type,dev
+2026-09-08,AR,Threats & coercion,Yes,,final
+2026-09-15,DJ,Threats & coercion,Yes,,dev
+2026-09-20,PK,Protest & unrest,Yes,,final
+2026-10-07,IS,Armed conflict,No,old_event,final
+2026-09-09,AE,Threats & coercion,No,old_event,dev
+2026-09-25,IN,Protest & unrest,No,misread_type,final
+2026-09-22,CE,Threats & coercion,Yes,,dev
+2026-10-07,PL,Threats & coercion,No,misread_type,final
+2026-09-07,LE,Armed conflict,Yes,,dev
+2026-10-07,PL,Armed conflict,Yes,,final
+2026-10-08,EI,Protest & unrest,Yes,,dev
+2026-09-13,YM,Threats & coercion,Yes,,final
+2026-09-18,SY,Threats & coercion,Yes,,dev
+2026-09-08,YM,Threats & coercion,Yes,,final
+2026-09-14,SA,Armed conflict,Yes,,dev
+2026-10-04,JA,Threats & coercion,No,misread_type+wrong_place,final
+2026-09-20,YM,Threats & coercion,No,duplicate_story,dev
+2026-09-08,SA,Threats & coercion,Yes,,final
+2026-09-18,NI,Protest & unrest,Yes,,dev
+2026-10-05,JA,Threats & coercion,No,old_event,final
+2026-09-09,ZI,Threats & coercion,Yes,,dev
+2026-09-21,KS,Armed conflict,No,misread_type+duplicate_story,final
+2026-09-12,DJ,Armed conflict,Yes,,dev
+2026-09-14,TU,Armed conflict,Yes,,final
+2026-09-21,HA,Armed conflict,No,misread_type,dev
+2026-10-06,TU,Armed conflict,No,misread_type,final
+2026-10-08,SA,Armed conflict,Yes,,dev
+2026-09-15,YM,Armed conflict,Yes,,final
+2026-09-21,DJ,Threats & coercion,Yes,,dev

@@ -258,10 +258,21 @@ Two follow-up checks, both using **cross-validation on the training rows only** 
 
 **What this means.** The event-quality model is limited by the information available per label, not by which GDELT fields it sees. Per-event credibility from GDELT fields alone sits at about 0.67 to 0.77 AUC with this many labels. Larger gains would need much more labeled data or a different kind of signal (for example, whether other outlets corroborate the same event), not more columns.
 
-## Accuracy refinement round 2: alerts (in progress)
+## Accuracy refinement round 2: alerts
 
-**Harness.** `make evaluate` reports the event model against `models/baseline_metrics.json` and the alert detector on the hand-judged gold set (`docs/spike_gold_set.csv`, 50 spikes: 30 dev, 20 final; 10 judged so far).
+**A bigger audit corrected the headline number.** The first spot-check (10 alerts, 3 real) was an unlucky small sample. After judging 40 more alerts by hand, the gold set (`docs/spike_gold_set.csv`) holds 50 judged alerts: **30 real, 19 not, 1 unclear, so detector precision is 61%** (95% interval 47% to 74%). The earlier "3 of 10" in the section above is superseded by this figure. Split: 30 dev (used for experiments) and 20 final (opened once, at the end): dev 17 real / 12 not / 1 unclear = 59%; final 13 real / 7 not = 65%.
 
-**Baseline before any alert change (2026-10-10):** 9.8 alerts per day; on the 10 judged spikes all 10 are flagged, 3 real, 6 not, 1 unclear, precision 33% (3 of 9 decided), 3 of 3 real alerts kept.
+**Why the not-real ones are not real** (19 alerts; a few have two reasons): misread event type 10 (a court case, a military test, suspects detained in a plot coded as violence), old event rehashed 4, same story alerted again 5, wrong place 2.
 
-**Finding: same-day article overlap does not explain the duplicate alerts we judged.** Across 307 backtest spikes, 161 same-day pairs share at least one source article, but only 13 pairs share half or more of the smaller spike's articles (41 at 30%). The four Houthi-story duplicates from the first spot-check fall on four different days (Sep 10, 11, 12, 14) in different countries and share 0, 1 and 5 articles. So "duplicate story" there means the same ongoing situation being alerted again on later days, not the same articles being counted twice. Grouping alerts by shared articles would fix the smaller case (for example Central African Republic armed conflict plus threats on one day) but not the judged one. Whether to build grouping, a "continuing situation" flag, or neither will be decided from the reason tags in the 40 new audits.
+**Experiments (rules fixed before running; all tried on dev only):**
+
+| Idea | Rule to adopt | Dev result | Final result (opened once) | Decision |
+|---|---|---|---|---|
+| Stricter floor / score threshold (12 settings from floor 10 to 20 and score 3 to 6) | precision +10 points, keep at least 14 of 17 real alerts, at least 3 alerts/day | none passed; stricter settings lose real alerts about as fast as bad ones (floor 20: 8 of 17 real kept at 62% precision) | not tested | not adopted |
+| Rank alerts by article count instead of score | AUC of "real vs not real" at least 0.10 better | score AUC 0.36 (worse than chance), count 0.59: passed | score 0.72, count 0.25: **reversed**, failed | not adopted |
+| Count only articles with quality score >= 0.4 | precision +10 points, lose at most 2 real alerts | precision 57% to 74%, 14 of 16 real kept: passed | precision 62% (10 of 16), lost 3 real: **failed** | not adopted |
+| Group alerts that share articles | n/a | same-day overlap is rare (13 of 307 spikes) and does not cover the multi-day duplicates that were judged | not built | not built |
+
+**What this shows.** With 20 to 30 alerts per set, differences of this size are indistinguishable from chance: two ideas that "won" on dev lost or reversed on the untouched final set. That is exactly why the final set was held back. **The detector is left unchanged: roughly 60 to 65% of alerts are real, and no tested tweak reliably improves that.** The plan's target of 60% alert precision on the final set was already met by the baseline (65%), so it does not count as an improvement.
+
+**Where the errors come from.** About half the false alerts are misread event types in the GDELT coding itself, which the model cannot repair with GDELT fields at this label count (see round 1). The practical lever is the analyst: each alert needs a fast way to verify the underlying articles before briefing. Further statistical tuning would need many more judged alerts (hundreds) to tell small improvements from noise. The 20 final alerts are now used and cannot serve as an untouched test again.

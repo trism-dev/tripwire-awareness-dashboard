@@ -20,7 +20,11 @@ def test_load_gold_reads_the_committed_file():
     assert len(df) >= 10
     assert set(df["split"]) <= {"dev", "final"}
     assert set(df["verdict"]) <= {"Yes", "No", "Unclear", ""}
-    assert set(df["reason"]) <= {"", *gold.REASONS}
+    tags = {tag for reason in df["reason"] for tag in reason.split("+") if reason}
+    assert tags <= set(gold.REASONS)  # a spike can have several reasons, joined with "+"
+    assert all(
+        r == "" for r, v in zip(df["reason"], df["verdict"], strict=True) if v == "Yes"
+    )  # a Yes has no reason
     keys = list(zip(df["day"], df["country_code"], df["category"], strict=True))
     assert len(keys) == len(set(keys))  # no spike judged twice
 
