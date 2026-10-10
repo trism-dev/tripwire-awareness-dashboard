@@ -49,6 +49,11 @@ hand-labeled ones). A Streamlit app reads the database. Diagram sources are in `
 
 </details>
 
+## Deploying
+
+See [docs/deploy_railway.md](docs/deploy_railway.md) for a step-by-step Railway guide (one image,
+the `SERVICE` variable picks `app` or `worker`).
+
 ## Data
 
 Event data: [The GDELT Project](https://www.gdeltproject.org/). GDELT is free to use with attribution.

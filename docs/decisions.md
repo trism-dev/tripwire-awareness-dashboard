@@ -160,3 +160,12 @@
 - **Decision:** selecting a row in the Alerts table shows the best-sourced distinct articles behind that alert (what GDELT coded each as, actors, place, sources, quality score, a safe link), under the table. It uses `queries.spike_evidence`, which the audit checklist (`gold.evidence`) now reuses, so the analyst sees exactly what the audits judged.
 - **Why:** the 50-alert audit showed about 4 in 10 alerts are false, mostly misread event types that a person spots in seconds by opening two articles. The panel makes verification the default step instead of a hunt.
 - **Bugs found while building it (pandas turns a missing text value into NaN, which is truthy):** `event_description(NaN)` crashed, and `a or "?"` printed "nan" for missing actor names. Both fixed and tested; the audit checklist had the same latent problem.
+
+## 2026-10-10: Deployment design (one image, SERVICE variable)
+- **Decision:** one Docker image; `deploy/start.sh` starts the dashboard (`SERVICE=app`, port from `PORT`) or the worker (`SERVICE=worker`). The Dockerfile has a default `CMD`; Compose still overrides it explicitly.
+- **Alternatives:** Railway config files per service (config-as-code is deprecated, legacy files stop working 2026-12-01; and per-service file paths are not documented); typing start commands in the dashboard (Railway does not expand `$PORT` in a plain start command, so it would need a `sh -c` wrapper, and it is untestable locally).
+- **Why:** it is testable on this machine. Verified: no `SERVICE` exits with a clear message; `SERVICE=app` serves health 200 on a custom `PORT` with labeling off and stops in 1.5 s; the worker runs a pass.
+- **Bug found by that test:** the worker was force-killed (exit 137) on stop because Python as PID 1 ignores SIGTERM. Added a handler (`worker/run.py: handle_sigterm`); now exits 0 in 1.6 s. Matters on any host that redeploys by stopping the container.
+- **Data transfer:** dump and restore (61 MB), rehearsed into a scratch database with identical counts. It carries the labels, which exist nowhere else. A re-backfill on the host would take about 80 minutes and would lose the labels.
+- **Binary-safe dump:** use `pg_dump -f` then `docker compose cp`; PowerShell's `>` corrupts binary output.
+- **Cost:** about $9 to $13 a month estimated from measured memory and Railway's published rates (Hobby: $5 including $5 usage). Postgres memory is the uncertain part. A spending limit must be set by the owner; where exactly could not be confirmed from the docs.

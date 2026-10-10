@@ -1,6 +1,8 @@
 """Long-running worker: every 15 minutes ingest GDELT and refresh spikes. (Retention comes later.)"""
 
 import logging
+import signal
+import sys
 import time
 from datetime import UTC, datetime, timedelta
 
@@ -48,7 +50,16 @@ def tick(conn, fetch=None, delay=0.5) -> None:
         log.exception("retention failed")
 
 
+def handle_sigterm(signum, frame) -> None:
+    """A host stops a container with SIGTERM. As PID 1, Python ignores it unless told otherwise, and
+    the host would kill the worker after a grace period, possibly mid-pass. Exit cleanly instead:
+    SystemExit unwinds the `with connect()` block, which rolls back any half-finished transaction."""
+    log.info("stop signal received, shutting down")
+    sys.exit(0)
+
+
 def main() -> None:
+    signal.signal(signal.SIGTERM, handle_sigterm)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     while True:
         try:

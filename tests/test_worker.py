@@ -33,3 +33,15 @@ def test_tick_stores_spikes_for_today(conn):
         "SELECT country_code, count FROM spikes WHERE day = %s", (today,)
     ).fetchall()
     assert rows == [("UP", 40)]
+
+
+def test_sigterm_handler_exits_cleanly():
+    import signal
+
+    import pytest
+
+    from worker.run import handle_sigterm
+
+    with pytest.raises(SystemExit) as stop:
+        handle_sigterm(signal.SIGTERM, None)
+    assert stop.value.code == 0  # a normal exit, not a crash

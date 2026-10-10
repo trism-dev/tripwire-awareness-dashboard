@@ -5,3 +5,4 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY . .
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1
+CMD ["sh", "deploy/start.sh"]
