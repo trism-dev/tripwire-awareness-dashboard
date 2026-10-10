@@ -43,6 +43,7 @@ CATEGORY_COLORS = {
     cat.OTHER_CONFLICT: ("#008300", "#008300"),
 }
 WINDOWS = {"Last 24 hours": 24, "Last 7 days": 168}
+METRES_PER_RADIUS_UNIT = 12000  # one radius unit is 12 km: dots reach full size around zoom 3-4
 RANKINGS = {"Score": "z", "Event count": "count"}
 
 # ---- helpers ---------------------------------------------------------------------------------
@@ -215,7 +216,12 @@ def render_map(points: pd.DataFrame, key: str):
         get_position=["lon", "lat"],
         get_fill_color="color",
         get_radius="radius",
-        radius_units="pixels",
+        # Metres, so dots keep their place on the ground and spread apart as you zoom in. The pixel
+        # limits stop them vanishing at world view or swamping the map up close.
+        radius_units="'meters'",  # inner quotes: pydeck reads a bare word as a JS variable
+        radius_scale=METRES_PER_RADIUS_UNIT,
+        radius_min_pixels=3,
+        radius_max_pixels=14,
         stroked=True,
         get_line_color=[20, 20, 20, 200] if dark else [255, 255, 255, 230],
         line_width_min_pixels=1,
