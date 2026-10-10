@@ -59,6 +59,11 @@ def rgb(hex_color: str) -> list[int]:
     return [int(hex_color[i : i + 2], 16) for i in (1, 3, 5)]
 
 
+def actor_name(value) -> str:
+    """An actor name, or ? when GDELT gave none (pandas shows a missing name as NaN, which is truthy)."""
+    return "?" if pd.isna(value) or not value else str(value)
+
+
 def one_decimal(value) -> str:
     return "not given" if value is None else f"{value:.1f}"
 
@@ -139,6 +144,12 @@ def load_alert_days():
 def load_alerts(day):
     with connect() as conn:
         return queries.spike_alerts(conn, day)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def load_evidence(day, country: str, category: str):
+    with connect() as conn:
+        return queries.spike_evidence(conn, day, country, category)
 
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -291,7 +302,7 @@ def render_alerts(categories: list[str], countries: list[str]):
         "A spike is a country and category with at least 10 distinct news articles in a day and a Score of 3 or more. "
         "Score = how far above a typical day it is, measured in normal day-to-day swings; the "
         "typical day is the median of the previous 28 days. 'Quiet baseline' means the place is "
-        "usually near zero, so a Poisson spread is used. Select a row to chart it in the Trend tab."
+        "usually near zero, so a Poisson spread is used. Select a row to see its articles below and chart it in the Trend tab."
     )
     table = pd.DataFrame(
         {
@@ -319,6 +330,9 @@ def render_alerts(categories: list[str], countries: list[str]):
         if st.session_state.get("alert_pick") != pick:  # only on a new click, so the Trend
             st.session_state["alert_pick"] = pick  # tab's own pickers still work afterwards
             st.session_state["trend_country"], st.session_state["trend_category"] = pick
+        render_evidence(day, *pick)
+    else:
+        st.caption("Select a row to see the articles behind that alert.")
 
 
 def trend_chart(df: pd.DataFrame, dark: bool):
@@ -381,6 +395,42 @@ def render_trend(country_codes: list[str]):
             }
         )
         st.dataframe(shown.round(1), hide_index=True, width="stretch")
+
+
+def evidence_table(evidence: pd.DataFrame) -> pd.DataFrame:
+    """How the articles behind an alert are shown: what each was coded as, plus a safe link."""
+    return pd.DataFrame(
+        {
+            "Coded as": evidence["event_code"].map(event_description),
+            "Actors": [
+                f"{actor_name(a1)} -> {actor_name(a2)}"
+                for a1, a2 in zip(evidence["actor1_name"], evidence["actor2_name"], strict=True)
+            ],
+            "Place": evidence["geo_fullname"],
+            "Sources": evidence["num_sources"],
+            "Quality": pd.to_numeric(evidence["quality_score"]).round(2),
+            "Article": evidence["source_url"].map(safe_url),
+        }
+    )
+
+
+def render_evidence(day, country: str, category: str):
+    st.subheader(f"Evidence: {country_name(country)}, {category}, {day}")
+    evidence = load_evidence(day, country, category)
+    if evidence.empty:
+        st.info("No articles with a link for this alert.")
+        return
+    st.caption(
+        "The best-sourced articles behind this alert, and what GDELT coded each as. Open two or three: "
+        "if they are about something else (a court case or a test coded as violence, an old event), "
+        "do not brief it."
+    )
+    st.dataframe(
+        evidence_table(evidence),
+        hide_index=True,
+        width="stretch",
+        column_config={"Article": st.column_config.LinkColumn("Article", display_text="open")},
+    )
 
 
 def render_table(f: Filters):

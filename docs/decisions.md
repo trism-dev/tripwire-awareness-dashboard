@@ -155,3 +155,8 @@
 - **Process:** adoption rules were written before each run; the final split (20 alerts) was opened exactly once; no labeled event lies inside any dev spike (checked), so the quality-filter test had no leakage.
 - **Limit:** 50 judged alerts cannot detect improvements smaller than about 15 points. The final split is spent.
 - **Not built:** grouping alerts by shared articles (the judged duplicates are on different days, so it would not help).
+
+## 2026-10-10: Alert evidence panel
+- **Decision:** selecting a row in the Alerts table shows the best-sourced distinct articles behind that alert (what GDELT coded each as, actors, place, sources, quality score, a safe link), under the table. It uses `queries.spike_evidence`, which the audit checklist (`gold.evidence`) now reuses, so the analyst sees exactly what the audits judged.
+- **Why:** the 50-alert audit showed about 4 in 10 alerts are false, mostly misread event types that a person spots in seconds by opening two articles. The panel makes verification the default step instead of a hunt.
+- **Bugs found while building it (pandas turns a missing text value into NaN, which is truthy):** `event_description(NaN)` crashed, and `a or "?"` printed "nan" for missing actor names. Both fixed and tested; the audit checklist had the same latent problem.

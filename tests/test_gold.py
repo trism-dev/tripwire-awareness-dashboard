@@ -59,3 +59,14 @@ def test_draw_sample_covers_the_whole_score_range():
 def test_draw_sample_rejects_asking_for_more_than_exist():
     with pytest.raises(ValueError):
         gold.draw_sample(fake_spikes(6), 40, set())
+
+
+def test_evidence_turns_missing_values_into_none_not_nan(conn):
+    conn.execute(
+        "INSERT INTO events (global_event_id, event_date, date_added, country_code, category, source_url)"
+        " VALUES (1, '2026-10-01', now(), 'UP', 'Armed conflict', 'https://a.example/x')"
+    )
+    conn.commit()
+    row = gold.evidence(conn, date(2026, 10, 1), "UP", "Armed conflict")[0]
+    assert row[0] == "https://a.example/x"
+    assert row[1:] == (None, None, None, None, None)  # `a or "?"` in the checklist then works

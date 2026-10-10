@@ -33,3 +33,7 @@ def test_cameo_garbage_codes():
     assert event_description("---") == "Unknown event type"
     assert event_description(None) == "Unknown event type"
     assert event_description("") == "Unknown event type"
+
+
+def test_cameo_missing_value_from_pandas_is_not_a_crash():
+    assert event_description(float("nan")) == "Unknown event type"

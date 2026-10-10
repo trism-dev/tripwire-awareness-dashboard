@@ -211,3 +211,31 @@ def test_table_includes_the_quality_score(conn):
     add(conn, 1, quality=0.77)
     table = queries.table_events(conn, Filters(24, ALL))
     assert round(float(table.iloc[0]["quality_score"]), 2) == 0.77
+
+
+def add_article(
+    conn, eid, url, *, sources=1, day="2026-10-01", country="UP", category="Armed conflict"
+):
+    conn.execute(
+        "INSERT INTO events (global_event_id, event_date, date_added, country_code, category, num_sources,"
+        " source_url, event_code, geo_fullname) VALUES (%s, %s, now(), %s, %s, %s, %s, '190', 'Kyiv')",
+        (eid, day, country, category, sources, url),
+    )
+    conn.commit()
+
+
+def test_spike_evidence_is_one_row_per_article_best_sourced_first(conn):
+    add_article(conn, 1, "https://a.example/x", sources=1)
+    add_article(conn, 2, "https://a.example/x", sources=4)  # same article, better-sourced row wins
+    add_article(conn, 3, "https://b.example/y", sources=2)
+    add_article(conn, 4, None, sources=9)  # no link: cannot be opened, so not evidence
+    add_article(conn, 5, "https://c.example/z", sources=9, day="2026-10-02")  # another day
+    add_article(conn, 6, "https://d.example/w", sources=9, country="IS")  # another country
+    df = queries.spike_evidence(conn, "2026-10-01", "UP", "Armed conflict")
+    assert list(df["source_url"]) == ["https://a.example/x", "https://b.example/y"]
+    assert list(df["num_sources"]) == [4, 2]
+    assert len(queries.spike_evidence(conn, "2026-10-01", "UP", "Armed conflict", limit=1)) == 1
+    assert queries.spike_evidence(conn, "2026-10-01", "UP", "Protest & unrest").empty
+    assert list(queries.spike_evidence(conn, "2026-10-09", "UP", "Armed conflict").columns) == list(
+        df.columns
+    )

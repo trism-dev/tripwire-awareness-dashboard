@@ -8,7 +8,7 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from app.Home import age_text, prepare_points, quality_text, safe_url
+from app.Home import age_text, evidence_table, prepare_points, quality_text, safe_url
 from tests.test_queries import add
 
 APP = str(Path(__file__).resolve().parent.parent / "app" / "Home.py")
@@ -235,3 +235,35 @@ def test_quality_text_wording():
     assert "likely credible" in quality_text(0.8)
     assert "uncertain" in quality_text(0.5)
     assert "likely not credible" in quality_text(0.1)
+
+
+def test_evidence_table_shows_how_each_article_was_coded_and_only_safe_links():
+    import pandas as pd
+
+    evidence = pd.DataFrame(
+        {
+            "source_url": ["https://a.example/x", "javascript:alert(1)"],
+            "event_code": ["190", None],
+            "actor1_name": ["POLICE", None],
+            "actor2_name": [None, "CROWD"],
+            "geo_fullname": ["Kyiv", "Lviv"],
+            "num_sources": [4, 1],
+            "quality_score": [0.8123, None],
+        }
+    )
+    shown = evidence_table(evidence)
+    assert list(shown.columns) == ["Coded as", "Actors", "Place", "Sources", "Quality", "Article"]
+    assert "military force" in shown.iloc[0]["Coded as"].lower()
+    assert list(shown["Actors"]) == ["POLICE -> ?", "? -> CROWD"]
+    assert shown.iloc[0]["Quality"] == 0.81
+    assert shown.iloc[0]["Article"] == "https://a.example/x"
+    assert pd.isna(shown.iloc[1]["Article"])  # a javascript: link is never shown as a link
+    assert shown.iloc[1]["Coded as"] == "Unknown event type"
+
+
+def test_alerts_tab_tells_the_user_to_select_a_row_for_evidence(conn, app_env):
+    add(conn, 1)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=6.0)
+    at = run_app()
+    assert not at.exception
+    assert any("Select a row to see the articles" in c.value for c in at.caption)

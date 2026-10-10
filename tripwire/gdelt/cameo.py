@@ -22,7 +22,7 @@ def _descriptions() -> dict[str, str]:
 def event_description(code: str | None) -> str:
     """Description of a CAMEO code. A few codes in the data are missing from GDELT's lookup
     (e.g. 106), so we fall back to the parent code: 1213 -> 121 -> 12."""
-    if not code or not code.isdigit():
+    if not isinstance(code, str) or not code.isdigit():  # also NaN from pandas, not just None
         return "Unknown event type"
     descriptions = _descriptions()
     for length in range(len(code), 1, -1):

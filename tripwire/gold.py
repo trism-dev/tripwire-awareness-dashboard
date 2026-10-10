@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from tripwire import queries
 from tripwire.db import connect
 from tripwire.fips import country_name
 from tripwire.gdelt.cameo import event_description
@@ -59,19 +60,23 @@ def draw_sample(
 
 
 def evidence(conn, day: date, country: str, category: str, limit: int = 3) -> list[tuple]:
-    """The best-sourced distinct articles behind a spike: (url, event type, actors, place, sources)."""
-    rows = conn.execute(
-        """
-        SELECT DISTINCT ON (source_url) source_url, event_code, actor1_name, actor2_name,
-               geo_fullname, num_sources
-        FROM events
-        WHERE country_code = %s AND category = %s AND event_date = %s AND source_url IS NOT NULL
-        ORDER BY source_url, num_sources DESC NULLS LAST
-        """,
-        (country, category, day),
-    ).fetchall()
-    rows.sort(key=lambda r: -(r[5] or 0))
-    return rows[:limit]
+    """The best-sourced distinct articles behind a spike: (url, event code, actor 1, actor 2, place,
+    sources). The same query the Alerts tab uses."""
+    df = queries.spike_evidence(conn, day, country, category, limit)
+    return [
+        tuple(
+            None if pd.isna(v) else v
+            for v in (
+                r.source_url,
+                r.event_code,
+                r.actor1_name,
+                r.actor2_name,
+                r.geo_fullname,
+                r.num_sources,
+            )
+        )
+        for r in df.itertuples()
+    ]
 
 
 def write_checklist(conn, sample: list[tuple[tuple, str]], path: Path = CHECKLIST_PATH) -> None:

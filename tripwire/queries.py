@@ -156,3 +156,32 @@ def export_events(conn: psycopg.Connection, f: Filters, limit: int = EXPORT_LIMI
         )
         columns = [c.name for c in cur.description]  # keeps the headers even with no rows
         return pd.DataFrame(cur.fetchall(), columns=columns)
+
+
+def spike_evidence(
+    conn: psycopg.Connection, day, country: str, category: str, limit: int = 8
+) -> pd.DataFrame:
+    """The distinct articles behind one spike, best-sourced first, with how each was coded.
+
+    One row per article (a source URL can carry several event rows; the best-sourced one is shown).
+    This is the evidence an analyst opens to confirm or reject an alert.
+    """
+    with conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(
+            """
+            SELECT * FROM (
+                SELECT DISTINCT ON (source_url)
+                       source_url, event_code, actor1_name, actor2_name, geo_fullname,
+                       num_sources, quality_score
+                FROM events
+                WHERE country_code = %s AND category = %s AND event_date = %s
+                  AND source_url IS NOT NULL
+                ORDER BY source_url, num_sources DESC NULLS LAST, global_event_id
+            ) best
+            ORDER BY num_sources DESC NULLS LAST, source_url
+            LIMIT %s
+            """,
+            (country, category, day, limit),
+        )
+        columns = [c.name for c in cur.description]
+        return pd.DataFrame(cur.fetchall(), columns=columns)
