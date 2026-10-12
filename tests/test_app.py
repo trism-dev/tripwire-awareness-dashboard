@@ -8,7 +8,14 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from app.Home import age_text, evidence_table, prepare_points, quality_text, safe_url
+from app.Home import (
+    age_text,
+    evidence_table,
+    prepare_points,
+    quality_text,
+    safe_url,
+    short_place,
+)
 from tests.test_queries import add
 
 APP = str(Path(__file__).resolve().parent.parent / "app" / "Home.py")
@@ -146,7 +153,7 @@ def test_alerts_tab_lists_spikes_highest_score_first(conn, app_env):
     assert not at.exception
     table = alerts_table(at)
     assert list(table["Country"]) == ["Israel", "Ukraine"]
-    assert list(table["Rule"]) == ["quiet baseline", "normal"]
+    assert list(table["Rule"]) == ["quiet", "normal"]
     assert list(table["Score"]) == [9.5, 6.0]
 
 
@@ -267,3 +274,10 @@ def test_alerts_tab_tells_the_user_to_select_a_row_for_evidence(conn, app_env):
     at = run_app()
     assert not at.exception
     assert any("Select a row to see the articles" in c.value for c in at.caption)
+
+
+def test_short_place_keeps_city_and_country_and_survives_missing_values():
+    assert short_place("Dubai, Dubayy, United Arab Emirates", "AE") == "Dubai, United Arab Emirates"
+    assert short_place("Ukraine", "UP") == "Ukraine"  # country-level record: no repeated name
+    assert short_place(float("nan"), "UP") == "Ukraine"  # pandas gives NaN, which is truthy
+    assert short_place(None, "UP") == "Ukraine"

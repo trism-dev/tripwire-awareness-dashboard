@@ -169,3 +169,14 @@
 - **Data transfer:** dump and restore (61 MB), rehearsed into a scratch database with identical counts. It carries the labels, which exist nowhere else. A re-backfill on the host would take about 80 minutes and would lose the labels.
 - **Binary-safe dump:** use `pg_dump -f` then `docker compose cp`; PowerShell's `>` corrupts binary output.
 - **Cost:** about $9 to $13 a month estimated from measured memory and Railway's published rates (Hobby: $5 including $5 usage). Postgres memory is the uncertain part. A spending limit must be set by the owner; where exactly could not be confirmed from the docs.
+
+## Tables fit their container (no horizontal scrollbars)
+
+Streamlit grids scroll sideways when their columns are wider than the page. The events table (12
+columns) did, and the Alerts and Evidence tables clipped. Fix: fixed pixel widths on every column,
+and only the columns that fit a 1024 px window are shown. The events table drops Country (merged into
+Place, shortened to "city, country"), actors, Goldstein, tone, source count and the event type; the
+Evidence table hides Actors. All of these are still in the CSV export. Alerts shorten "quiet
+baseline" to "quiet". Verified in the browser at 1024 px. At phone width (390 px) the page does not
+scroll sideways but the tables still scroll inside their own box; a card layout would be needed to
+fix that.

@@ -69,6 +69,20 @@ def one_decimal(value) -> str:
     return "not given" if value is None else f"{value:.1f}"
 
 
+def widths(**pixels: int) -> dict:
+    """Fixed pixel widths for columns, so a table fits its container instead of scrolling sideways."""
+    return {name: st.column_config.Column(name, width=w) for name, w in pixels.items()}
+
+
+def short_place(geo_fullname, country_code) -> str:
+    """'Dubai, Dubayy, United Arab Emirates' -> 'Dubai, United Arab Emirates' (short enough to read)."""
+    city = (
+        "" if pd.isna(geo_fullname) or not geo_fullname else str(geo_fullname).split(",")[0].strip()
+    )
+    country = country_name(country_code)
+    return f"{city}, {country}" if city and city != country else country
+
+
 def quality_text(score) -> str:
     """The model's estimate that a record is credible, in words a briefer can use."""
     if score is None:
@@ -307,7 +321,7 @@ def render_alerts(categories: list[str], countries: list[str]):
     st.caption(
         "A spike is a country and category with at least 10 distinct news articles in a day and a Score of 3 or more. "
         "Score = how far above a typical day it is, measured in normal day-to-day swings; the "
-        "typical day is the median of the previous 28 days. 'Quiet baseline' means the place is "
+        "typical day is the median of the previous 28 days. 'Quiet' (in the Rule column) means the place is "
         "usually near zero, so a Poisson spread is used. Select a row to see its articles below and chart it in the Trend tab."
     )
     table = pd.DataFrame(
@@ -315,9 +329,9 @@ def render_alerts(categories: list[str], countries: list[str]):
             "Country": alerts["country_code"].map(country_name),
             "Category": alerts["category"],
             "Articles": alerts["count"],
-            "Typical day": alerts["baseline_median"].round(1),
+            "Typical": alerts["baseline_median"].round(1),
             "Score": alerts["z"].round(1),
-            "Rule": np.where(alerts["baseline_mad"] > 0, "normal", "quiet baseline"),
+            "Rule": np.where(alerts["baseline_mad"] > 0, "normal", "quiet"),
         }
     )
     # The key changes with the data, so an old row selection can never point at a different row.
@@ -329,6 +343,14 @@ def render_alerts(categories: list[str], countries: list[str]):
         on_select="rerun",
         selection_mode="single-row",
         key=key,
+        column_config=widths(
+            Country=100,
+            Category=130,
+            Articles=70,
+            Typical=70,
+            Score=55,
+            Rule=70,
+        ),
     )
     rows = state.selection.rows
     if rows and rows[0] < len(alerts):
@@ -403,8 +425,13 @@ def render_trend(country_codes: list[str]):
         st.dataframe(shown.round(1), hide_index=True, width="stretch")
 
 
-def evidence_table(evidence: pd.DataFrame) -> pd.DataFrame:
+def evidence_table(evidence: pd.DataFrame, country_code: str | None = None) -> pd.DataFrame:
     """How the articles behind an alert are shown: what each was coded as, plus a safe link."""
+    places = (
+        evidence["geo_fullname"]
+        if country_code is None
+        else [short_place(g, country_code) for g in evidence["geo_fullname"]]
+    )
     return pd.DataFrame(
         {
             "Coded as": evidence["event_code"].map(event_description),
@@ -412,7 +439,7 @@ def evidence_table(evidence: pd.DataFrame) -> pd.DataFrame:
                 f"{actor_name(a1)} -> {actor_name(a2)}"
                 for a1, a2 in zip(evidence["actor1_name"], evidence["actor2_name"], strict=True)
             ],
-            "Place": evidence["geo_fullname"],
+            "Place": places,
             "Sources": evidence["num_sources"],
             "Quality": pd.to_numeric(evidence["quality_score"]).round(2),
             "Article": evidence["source_url"].map(safe_url),
@@ -432,10 +459,13 @@ def render_evidence(day, country: str, category: str):
         "do not brief it."
     )
     st.dataframe(
-        evidence_table(evidence),
+        evidence_table(evidence, country),
         hide_index=True,
         width="stretch",
-        column_config={"Article": st.column_config.LinkColumn("Article", display_text="open")},
+        # Actors stay in the frame (and the tests) but are not shown: five columns fit without a scrollbar.
+        column_order=["Coded as", "Place", "Sources", "Quality", "Article"],
+        column_config=widths(**{"Coded as": 215, "Place": 150, "Sources": 60, "Quality": 60})
+        | {"Article": st.column_config.LinkColumn("Article", display_text="open", width=55)},
     )
 
 
@@ -452,19 +482,18 @@ def render_table(f: Filters):
         help=f"Up to {queries.EXPORT_LIMIT:,} events matching the current filters, one row per event. "
         "Data: The GDELT Project (gdeltproject.org).",
     )
-    st.caption(f"The table shows the {len(table):,} best-sourced events in view.")
+    st.caption(
+        f"The table shows the {len(table):,} best-sourced events in view. The CSV also has "
+        "event type, actors, Goldstein score, tone and source counts."
+    )
     out = pd.DataFrame(
         {
-            "When (UTC)": table["date_added"].dt.strftime("%Y-%m-%d %H:%M"),
+            "When (UTC)": table["date_added"].dt.strftime("%m-%d %H:%M"),
             "Category": table["category"],
-            "Country": table["country_code"].map(country_name),
-            "Place": table["geo_fullname"],
-            "Actor 1": table["actor1_name"],
-            "Actor 2": table["actor2_name"],
-            "Event": table["event_code"].map(event_description),
-            "Sources": table["num_sources"],
-            "Goldstein": table["goldstein"],
-            "Tone": table["avg_tone"],
+            "Place": [
+                short_place(g, c)
+                for g, c in zip(table["geo_fullname"], table["country_code"], strict=True)
+            ],
             "Quality": pd.to_numeric(table["quality_score"]).round(
                 2
             ),  # all-NULL column is object dtype
@@ -475,7 +504,11 @@ def render_table(f: Filters):
         out,
         hide_index=True,
         width="stretch",
-        column_config={"Source": st.column_config.LinkColumn("Source", display_text="open")},
+        column_config=widths(**{"When (UTC)": 90, "Category": 125, "Place": 195})
+        | {
+            "Quality": st.column_config.NumberColumn("Quality", width=60),
+            "Source": st.column_config.LinkColumn("Source", display_text="open", width=55),
+        },
     )
 
 
