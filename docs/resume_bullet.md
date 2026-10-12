@@ -24,7 +24,7 @@ Replace `[LIVE URL]` once the Railway deployment is up. Re-check any number that
 > - Trained and evaluated a credibility classifier on 312 hand labels with a frozen hash-based test
 >   split, cross-validation and baselines (ROC-AUC 0.68, interval 0.57 to 0.77); documented that richer
 >   features made it worse.
-> - Built the pipeline end to end: idempotent 15-minute ingestion with failure handling, 158 automated
+> - Built the pipeline end to end: idempotent 15-minute ingestion with failure handling, 171 automated
 >   tests, GitHub Actions CI, Docker Compose, deployed on Railway.
 
 **Product-first (for a data-product or analyst-facing role):**
@@ -45,7 +45,7 @@ Replace `[LIVE URL]` once the Railway deployment is up. Re-check any number that
 | Four fixes tested and rejected | `docs/evaluation.md`, round 2 | "Two looked better on my development set and reversed on the 20 alerts I held back, so I adopted none." |
 | ROC-AUC 0.68 (0.57 to 0.77) | `models/quality_metrics.json` | "The model ranks a random credible event above a random non-credible one about two times in three; that is modest and I say so." |
 | 312 hand labels, frozen test split | `tripwire/quality/train.py` (`is_test_event`) | "Which events are test data is decided by a hash of the event id, so adding labels never leaks test rows into training." |
-| 158 tests, CI | `tests/`, `.github/workflows/ci.yml` | "Every module has tests, including a hand-computed example for the spike math; CI runs them against a real Postgres." |
+| 171 tests, CI | `tests/`, `.github/workflows/ci.yml` | "Every module has tests, including a hand-computed example for the spike math; CI runs them against a real Postgres." |
 | Safe CSV export | `tripwire/export.py` | "GDELT text is untrusted; a cell starting with `=` would run as a formula in Excel, so I prefix it." |
 
 ## What not to claim
