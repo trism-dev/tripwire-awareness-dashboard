@@ -300,3 +300,27 @@ building the idea, and there is no unseen set left to confirm it. **Treat it as 
 of that it only labels and reorders: no alert is hidden and precision of the alert list as a whole is
 unchanged (still about 61%, 50 judged). Whether new stories first really improves the top of the list
 needs fresh audits (plan step P0).
+
+## Refinement round 3b: URL-word cues for misread event types (tested, not built)
+
+**Idea.** Ten of the 19 false alerts were misread event types (a court case or a military test coded as
+violence). Look for non-combat words in the article URLs (court, trial, verdict, sentenced, lawsuit,
+earnings, celebrity, concert, drill, exercise, test-launch) and badge an alert as a possible misread.
+No article text is fetched; the URL is already stored.
+
+**Rule set before measuring.** Badge an alert if more than half its (up to 8) best-sourced evidence
+articles carry a cue. Adopt only if it catches at least 5 of the 10 misread alerts and badges at most
+3 of the 30 real ones. One cue list and one rule were tried (no variants).
+
+| | Badged |
+|---|---|
+| Misread alerts (10) | **0** |
+| Real alerts (30) | 1 |
+| Other false alerts (9) | 0 |
+
+**Not adopted, and the signal is absent, not just weak.** Counting any alert with at least one cue
+article: 2 of 10 misread alerts (20%) against 7 of 30 real alerts (23%). The only cue words that
+appear are `court` and `trial` words, and real alerts contain them as often as misread ones (genuine
+court coverage of a real conflict). Misread types are not visible in URL slugs with a keyword list, so
+no code was added. Remaining ways to catch them would need article text, which the project does not
+fetch, or many more labels so a model could learn it.
