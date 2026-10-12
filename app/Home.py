@@ -83,6 +83,38 @@ def short_place(geo_fullname, country_code) -> str:
     return f"{city}, {country}" if city and city != country else country
 
 
+def alert_sentence(country_code, category, count, typical, day, today) -> str:
+    """One plain sentence for an alert, e.g. 'Iraq: 13 articles on threats & coercion so far today; ...'."""
+    when = "so far today" if day == today else f"on {day}"
+    if typical < 0.5:
+        usual = "almost none"
+    else:
+        usual = f"{typical:.0f}" if abs(typical - round(typical)) < 0.05 else f"{typical:.1f}"
+    place = country_name(country_code)
+    return (
+        f"{place}: {int(count)} articles on {category.lower()} {when}; a typical day has {usual}."
+    )
+
+
+def map_focus(country_code: str, category: str, day, today) -> dict | None:
+    """Sidebar settings that show one alert on the map, or None if the map no longer holds that day
+    (it only goes back 7 days)."""
+    age = (today - day).days
+    if age > 7:
+        return None
+    return {
+        "countries": [country_code],
+        "categories": [category],
+        "window": "Last 24 hours" if age == 0 else "Last 7 days",
+    }
+
+
+def apply_focus(settings: dict, label: str):
+    """Button callback. Callbacks run before the page script, so the sidebar widgets pick this up."""
+    st.session_state.update(settings)
+    st.toast(f"Map filtered to {label}. Scroll up to see it.")
+
+
 def quality_text(score) -> str:
     """The model's estimate that a record is credible, in words a briefer can use."""
     if score is None:
@@ -197,6 +229,7 @@ def render_header(latest, counts: dict, shown: int):
 
 
 def render_legend(counts: dict):
+    st.caption("Dot size = number of sources. Click a dot for details.")
     for name, (light, dark) in CATEGORY_COLORS.items():
         if name in counts:
             colour = dark if is_dark() else light
@@ -204,6 +237,35 @@ def render_legend(counts: dict):
                 f"<span style='color:{colour}'>●</span> {name} — {counts[name]:,}",
                 unsafe_allow_html=True,
             )
+
+
+def selected_ring(df: pd.DataFrame, state, dark: bool):
+    """An outline layer around the clicked dot, or None. `state` is what Streamlit stored under the
+    map's key on the previous run (None before the first click)."""
+    try:
+        picked = state["selection"]["objects"].get("events") or []
+        event_id = int(picked[0]["global_event_id"])
+    except (TypeError, KeyError, IndexError, ValueError):
+        return None
+    one = df[df["global_event_id"] == event_id]
+    if one.empty:  # the data changed since the click
+        return None
+    return pdk.Layer(
+        "ScatterplotLayer",
+        id="selected",
+        data=one[["lon", "lat", "radius"]],
+        get_position=["lon", "lat"],
+        get_radius="radius",
+        radius_units="'meters'",
+        radius_scale=METRES_PER_RADIUS_UNIT,
+        radius_min_pixels=7,
+        radius_max_pixels=18,
+        filled=False,
+        stroked=True,
+        get_line_color=[255, 255, 255, 255] if dark else [20, 20, 20, 255],
+        line_width_min_pixels=3,
+        pickable=False,
+    )
 
 
 def render_map(points: pd.DataFrame, key: str):
@@ -234,7 +296,7 @@ def render_map(points: pd.DataFrame, key: str):
         # limits stop them vanishing at world view or swamping the map up close.
         radius_units="'meters'",  # inner quotes: pydeck reads a bare word as a JS variable
         radius_scale=METRES_PER_RADIUS_UNIT,
-        radius_min_pixels=3,
+        radius_min_pixels=4,
         radius_max_pixels=14,
         stroked=True,
         get_line_color=[20, 20, 20, 200] if dark else [255, 255, 255, 230],
@@ -242,12 +304,16 @@ def render_map(points: pd.DataFrame, key: str):
         pickable=True,
         auto_highlight=True,
     )
+    layers = [layer]
+    ring = selected_ring(df, st.session_state.get(key), dark)
+    if ring is not None:
+        layers.append(ring)
     tooltip = {
         "text": "{category}\n{geo_fullname} ({country})\n"
         "{n_events} event(s), best sourced by {num_sources} source(s) · {added} UTC"
     }
     deck = pdk.Deck(
-        layers=[layer],
+        layers=layers,
         initial_view_state=pdk.ViewState(**fit_view(df["lon"], df["lat"])),
         tooltip=tooltip,
         map_style="dark" if dark else "light",  # must match the palette shade chosen above
@@ -297,7 +363,7 @@ def render_detail(event_id: int | None, n_here: int = 1):
         st.caption("No usable source link.")
 
 
-def render_alerts(categories: list[str], countries: list[str]):
+def render_alerts(categories: list[str], countries: list[str], available: list[str]):
     days = load_alert_days()
     if not days:
         st.info(
@@ -323,6 +389,13 @@ def render_alerts(categories: list[str], countries: list[str]):
         "Score = how far above a typical day it is, measured in normal day-to-day swings; the "
         "typical day is the median of the previous 28 days. 'Quiet' (in the Rule column) means the place is "
         "usually near zero, so a Poisson spread is used. Select a row to see its articles below and chart it in the Trend tab."
+    )
+    top = alerts.iloc[0]
+    st.markdown(
+        "**Top alert:** "
+        + alert_sentence(
+            top["country_code"], top["category"], top["count"], top["baseline_median"], day, today
+        )
     )
     table = pd.DataFrame(
         {
@@ -358,6 +431,18 @@ def render_alerts(categories: list[str], countries: list[str]):
         if st.session_state.get("alert_pick") != pick:  # only on a new click, so the Trend
             st.session_state["alert_pick"] = pick  # tab's own pickers still work afterwards
             st.session_state["trend_country"], st.session_state["trend_category"] = pick
+        row = alerts.loc[rows[0]]
+        st.markdown(alert_sentence(*pick, row["count"], row["baseline_median"], day, today))
+        focus = map_focus(*pick, day, today)
+        if focus and pick[0] in available:
+            st.button(
+                "Show on map",
+                on_click=apply_focus,
+                args=(focus, f"{country_name(pick[0])}, {pick[1]}"),
+                help="Sets the sidebar filters to this country, category and time window.",
+            )
+        else:
+            st.caption("The map only holds the last 7 days, so this alert cannot be shown on it.")
         render_evidence(day, *pick)
     else:
         st.caption("Select a row to see the articles behind that alert.")
@@ -555,15 +640,19 @@ def main():
         st.info("No data yet. Run `make backfill DAYS=1` to load some events.")
         st.stop()
 
+    st.session_state.setdefault("categories", list(cat.DEFAULT_VISIBLE))
     with st.sidebar:
         st.header("Filters")
         window = st.selectbox(
-            "Time window", list(WINDOWS), help="Based on when GDELT reported the event."
+            "Time window",
+            list(WINDOWS),
+            key="window",
+            help="Based on when GDELT reported the event.",
         )
         chosen = st.multiselect(
             "Categories",
             list(CATEGORY_COLORS),
-            default=cat.DEFAULT_VISIBLE,
+            key="categories",  # keyed so the Show on map button can set it
             help="'Other conflict' is hidden by default.",
         )
         picked_countries = st.multiselect(
@@ -630,7 +719,7 @@ def main():
         ["Alerts", "Trend", "Events table", "About"]
     )
     with alerts_tab:
-        render_alerts(chosen, picked_countries)
+        render_alerts(chosen, picked_countries, [code for code, _ in countries])
     with trend_tab:
         render_trend([code for code, _ in countries])
     with events_tab:

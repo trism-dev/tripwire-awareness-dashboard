@@ -10,10 +10,13 @@ from streamlit.testing.v1 import AppTest
 
 from app.Home import (
     age_text,
+    alert_sentence,
     evidence_table,
+    map_focus,
     prepare_points,
     quality_text,
     safe_url,
+    selected_ring,
     short_place,
 )
 from tests.test_queries import add
@@ -281,3 +284,43 @@ def test_short_place_keeps_city_and_country_and_survives_missing_values():
     assert short_place("Ukraine", "UP") == "Ukraine"  # country-level record: no repeated name
     assert short_place(float("nan"), "UP") == "Ukraine"  # pandas gives NaN, which is truthy
     assert short_place(None, "UP") == "Ukraine"
+
+
+def test_alert_sentence_is_plain_and_handles_a_quiet_baseline():
+    from datetime import date
+
+    today = date(2026, 10, 12)
+    text = alert_sentence("IZ", "Threats & coercion", 13, 5.0, today, today)
+    assert text == "Iraq: 13 articles on threats & coercion so far today; a typical day has 5."
+    older = alert_sentence("IZ", "Armed conflict", 21, 2.5, date(2026, 10, 10), today)
+    assert "on 2026-10-10" in older and "typical day has 2.5" in older
+    assert alert_sentence("IZ", "Armed conflict", 12, 0.0, today, today).endswith(
+        "has almost none."
+    )
+
+
+def test_map_focus_sets_filters_and_refuses_days_the_map_does_not_hold():
+    from datetime import date
+
+    today = date(2026, 10, 12)
+    assert map_focus("IZ", "Armed conflict", today, today) == {
+        "countries": ["IZ"],
+        "categories": ["Armed conflict"],
+        "window": "Last 24 hours",
+    }
+    assert map_focus("IZ", "Armed conflict", date(2026, 10, 9), today)["window"] == "Last 7 days"
+    assert map_focus("IZ", "Armed conflict", date(2026, 10, 1), today) is None
+
+
+def test_selected_ring_only_for_a_dot_that_is_on_the_map():
+    import pandas as pd
+
+    df = pd.DataFrame(
+        {"global_event_id": [7, 8], "lon": [1.0, 2.0], "lat": [3.0, 4.0], "radius": [5, 6]}
+    )
+    clicked = {"selection": {"objects": {"events": [{"global_event_id": 8}]}}}
+    assert selected_ring(df, clicked, dark=False) is not None
+    gone = {"selection": {"objects": {"events": [{"global_event_id": 99}]}}}
+    assert selected_ring(df, gone, dark=False) is None
+    assert selected_ring(df, None, dark=False) is None  # before any click
+    assert selected_ring(df, {"selection": {"objects": {}}}, dark=False) is None
