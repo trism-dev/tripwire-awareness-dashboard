@@ -8,6 +8,7 @@ import psycopg
 from psycopg.rows import dict_row
 
 from tripwire.gdelt.categories import DEFAULT_VISIBLE
+from tripwire.gold import REASONS, VERDICTS
 
 TARGET = 300  # how many labels the PRD asks for
 POOL_DAYS = 30  # label recent events: they are what the classifier will score
@@ -86,3 +87,32 @@ def undo_last(conn: psycopg.Connection) -> int | None:
     ).fetchone()
     conn.commit()
     return row[0] if row else None
+
+
+def save_alert_verdict(
+    conn: psycopg.Connection, day, country_code: str, category: str, verdict: str, reason: str = ""
+) -> None:
+    """Store (or change) the hand verdict on one spike alert: Yes, No or Unclear."""
+    if verdict not in VERDICTS:
+        raise ValueError(f"verdict must be one of {VERDICTS}")
+    if reason and reason not in REASONS:
+        raise ValueError(f"reason must be one of {REASONS}")
+    conn.execute(
+        """
+        INSERT INTO alert_verdicts (day, country_code, category, verdict, reason)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (day, country_code, category) DO UPDATE
+            SET verdict = EXCLUDED.verdict, reason = EXCLUDED.reason, judged_at = now()
+        """,
+        (day, country_code, category, verdict, reason or None),
+    )
+    conn.commit()
+
+
+def alert_verdict(conn: psycopg.Connection, day, country_code: str, category: str) -> dict | None:
+    """The saved verdict for one alert as {'verdict', 'reason'}, or None if not judged yet."""
+    row = conn.execute(
+        "SELECT verdict, reason FROM alert_verdicts WHERE day = %s AND country_code = %s AND category = %s",
+        (day, country_code, category),
+    ).fetchone()
+    return {"verdict": row[0], "reason": row[1] or ""} if row else None

@@ -372,3 +372,37 @@ def test_page_address_sets_the_sidebar(conn, app_env):
     assert widget(at, "selectbox", "Time window").value == "Last 7 days"
     assert widget(at, "multiselect", "Countries").value == ["UP"]
     # Writing the address back is checked in the browser: AppTest does not report it.
+
+
+def _verdict_form():
+    from app.Home import render_verdict
+
+    render_verdict("2026-10-01", "UP", "Armed conflict")
+
+
+def test_verdict_form_is_only_there_when_labeling_is_enabled(conn, app_env, monkeypatch):
+    monkeypatch.delenv("ENABLE_LABELING", raising=False)
+    at = AppTest.from_function(_verdict_form, default_timeout=30).run()
+    assert not at.exception
+    assert len(at.radio) == 0  # nothing to click, nothing can be written
+
+    monkeypatch.setenv("ENABLE_LABELING", "1")
+    at = AppTest.from_function(_verdict_form, default_timeout=30).run()
+    assert not at.exception
+    assert [o for o in at.radio[0].options] == ["Yes", "No", "Unclear"]
+    assert at.button[0].disabled  # no verdict chosen yet
+
+
+def test_verdict_form_saves_the_verdict_and_reason(conn, app_env, monkeypatch):
+    monkeypatch.setenv("ENABLE_LABELING", "1")
+    at = AppTest.from_function(_verdict_form, default_timeout=30).run()
+    at.radio[0].set_value("No").run()
+    at.selectbox[0].set_value("misread_type").run()
+    at.button[0].click().run()
+    assert not at.exception
+    row = conn.execute(
+        "SELECT day::text, country_code, verdict, reason FROM alert_verdicts"
+    ).fetchone()
+    assert row == ("2026-10-01", "UP", "No", "misread_type")
+    again = AppTest.from_function(_verdict_form, default_timeout=30).run()
+    assert again.radio[0].value == "No"  # remembered on reload

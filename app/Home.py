@@ -1,6 +1,7 @@
 """Tripwire dashboard (PRD 5.6): map, filters, event detail, events table."""
 
 import logging
+import os
 import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -15,13 +16,14 @@ import psycopg
 import pydeck as pdk
 import streamlit as st
 
-from tripwire import queries, spikes
+from tripwire import labeling, queries, spikes
 from tripwire.config import load_settings
 from tripwire.db import connect
 from tripwire.export import events_csv
 from tripwire.fips import country_name
 from tripwire.gdelt import categories as cat
 from tripwire.gdelt.cameo import event_description
+from tripwire.gold import REASONS, VERDICTS
 from tripwire.mapview import fit_view
 from tripwire.queries import Filters
 from tripwire.web import safe_url
@@ -473,7 +475,8 @@ def render_alerts(categories: list[str], countries: list[str], available: list[s
             st.session_state["alert_pick"] = pick  # tab's own pickers still work afterwards
             st.session_state["trend_country"], st.session_state["trend_category"] = pick
         row = alerts.loc[rows[0]]
-        st.markdown(alert_sentence(*pick, row["count"], row["baseline_median"], day, today))
+        if rows[0] != 0:  # row 0 is the top alert, whose sentence is already above the table
+            st.markdown(alert_sentence(*pick, row["count"], row["baseline_median"], day, today))
         if row["baseline_mad"] == 0:
             st.caption(
                 "Quiet baseline: this place is usually near zero, so the normal spread is a Poisson estimate."
@@ -489,6 +492,7 @@ def render_alerts(categories: list[str], countries: list[str], available: list[s
         else:
             st.caption("The map only holds the last 7 days, so this alert cannot be shown on it.")
         render_evidence(day, *pick)
+        render_verdict(day, *pick)
     else:
         st.caption("Select a row to see the articles behind that alert.")
 
@@ -597,6 +601,39 @@ def render_evidence(day, country: str, category: str):
         column_config=widths(**{"Coded as": 215, "Place": 150, "Sources": 60, "Quality": 60})
         | {"Article": st.column_config.LinkColumn("Article", display_text="open", width=55)},
     )
+
+
+def render_verdict(day, country: str, category: str):
+    """Record whether this alert was about something real. Local use only: it writes to the database
+    and there are no user accounts, so it is off unless ENABLE_LABELING=1 (same rule as the Label page)."""
+    if os.environ.get("ENABLE_LABELING") != "1":
+        return
+    with connect() as conn:
+        saved = labeling.alert_verdict(conn, day, country, category)
+    key = f"{day}-{country}-{category}"
+    st.markdown(
+        "**Your verdict on this alert** (saved locally; builds the set alert precision is measured on)"
+    )
+    verdict = st.radio(
+        "Is it about something real, as coded?",
+        VERDICTS,
+        index=VERDICTS.index(saved["verdict"]) if saved else None,
+        horizontal=True,
+        key=f"verdict-{key}",
+    )
+    reason = ""
+    if verdict == "No":
+        reason = st.selectbox(
+            "Why not?",
+            ["", *REASONS],
+            index=(["", *REASONS].index(saved["reason"]) if saved and saved["reason"] else 0),
+            format_func=lambda r: r or "(not given)",
+            key=f"reason-{key}",
+        )
+    if st.button("Save verdict", disabled=verdict is None, key=f"save-{key}"):
+        with connect() as conn:
+            labeling.save_alert_verdict(conn, day, country, category, verdict, reason)
+        st.success("Saved.")
 
 
 def render_table(f: Filters):

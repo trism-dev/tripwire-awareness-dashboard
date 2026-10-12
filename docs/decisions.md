@@ -206,3 +206,14 @@ fix that.
   set a map selection from code.
 - **"How to read this"** box under the title, with the honest accuracy line (about 6 in 10 audited
   alerts were real) so a first-time visitor sees the limit before the numbers.
+
+## Alert verdicts in the app (migration 003)
+
+`alert_verdicts` (day, country, category, Yes/No/Unclear, reason) stores hand verdicts on spike
+alerts, one per alert, changeable. The Alerts tab shows a small form under the evidence **only when
+`ENABLE_LABELING=1`**, the same rule as the Label page: it writes to the database and there are no
+accounts, so it must stay off on a public host. Purpose: the 50-alert audit cannot tell small
+improvements from noise (`docs/evaluation.md`), and judging alerts while using the dashboard is the
+cheapest way to reach hundreds. The 50 original verdicts stay in `docs/spike_gold_set.csv`; to measure
+on both, export the table with
+`\copy alert_verdicts TO 'verdicts.csv' CSV HEADER`. Nothing in `evaluate.py` reads the table yet.

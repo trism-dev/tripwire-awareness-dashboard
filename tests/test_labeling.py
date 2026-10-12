@@ -147,3 +147,32 @@ def test_skip_does_not_write_a_label(conn, page_env, monkeypatch):
     button(at, "Skip").click().run()
     assert labeling.progress(conn) == (0, 0)
     assert not at.exception
+
+
+# ---- alert verdicts ---------------------------------------------------------------------------
+
+
+def test_alert_verdict_is_saved_and_can_be_changed(conn):
+    from tripwire.labeling import alert_verdict, save_alert_verdict
+
+    assert alert_verdict(conn, "2026-10-01", "UP", "Armed conflict") is None
+    save_alert_verdict(conn, "2026-10-01", "UP", "Armed conflict", "No", "misread_type")
+    assert alert_verdict(conn, "2026-10-01", "UP", "Armed conflict") == {
+        "verdict": "No",
+        "reason": "misread_type",
+    }
+    save_alert_verdict(conn, "2026-10-01", "UP", "Armed conflict", "Yes")  # changed their mind
+    assert alert_verdict(conn, "2026-10-01", "UP", "Armed conflict") == {
+        "verdict": "Yes",
+        "reason": "",
+    }
+    assert conn.execute("SELECT count(*) FROM alert_verdicts").fetchone()[0] == 1  # one per alert
+
+
+def test_alert_verdict_rejects_unknown_values(conn):
+    from tripwire.labeling import save_alert_verdict
+
+    with pytest.raises(ValueError):
+        save_alert_verdict(conn, "2026-10-01", "UP", "Armed conflict", "Maybe")
+    with pytest.raises(ValueError):
+        save_alert_verdict(conn, "2026-10-01", "UP", "Armed conflict", "No", "because")
