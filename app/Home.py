@@ -266,6 +266,43 @@ def render_header(latest, counts: dict, shown: int):
         st.warning(f"Data is {age_text(age)}; the target is under {STALE_AFTER_MIN} minutes.")
 
 
+def rank_alerts(alerts: pd.DataFrame, by: str) -> pd.DataFrame:
+    """New stories first, then continuing ones (they were false more often in the audit); each by `by`."""
+    return alerts.sort_values(["ongoing", by], ascending=[True, False]).reset_index(drop=True)
+
+
+def render_top_alerts(available: list[str]):
+    """The three highest-ranked alerts of the latest day, above the map. Not affected by the sidebar
+    filters, so pressing Show on map (which sets them) does not make these disappear."""
+    days = load_alert_days()
+    if not days:
+        return
+    day, today = days[0], datetime.now(UTC).date()
+    alerts = load_alerts(day)
+    alerts = alerts[alerts["category"].isin(cat.DEFAULT_VISIBLE)]
+    top = rank_alerts(alerts, "z").head(3)
+    if top.empty:
+        return
+    st.subheader("Biggest alerts" + (" so far today" if day == today else f" on {day}"))
+    for column, row in zip(st.columns(len(top)), top.itertuples(), strict=True):
+        with column:
+            ongoing = " *(ongoing)*" if row.ongoing else ""
+            st.markdown(
+                alert_sentence(
+                    row.country_code, row.category, row.count, row.baseline_median, day, today
+                )
+                + ongoing
+            )
+            focus = map_focus(row.country_code, row.category, day, today)
+            if focus and row.country_code in available:
+                st.button(
+                    "Show on map",
+                    on_click=apply_focus,
+                    args=(focus, f"{country_name(row.country_code)}, {row.category}"),
+                    key=f"top-{row.country_code}-{row.category}",
+                )
+
+
 def render_legend(counts: dict):
     st.caption("Dot size = number of sources. Click a dot for details.")
     for name, (light, dark) in CATEGORY_COLORS.items():
@@ -418,10 +455,7 @@ def render_alerts(categories: list[str], countries: list[str], available: list[s
     alerts = alerts[alerts["category"].isin(categories)]
     if countries:
         alerts = alerts[alerts["country_code"].isin(countries)]
-    # New stories first, then continuing ones (they were false more often in the audit); each by rank.
-    alerts = alerts.sort_values(["ongoing", RANKINGS[rank]], ascending=[True, False]).reset_index(
-        drop=True
-    )
+    alerts = rank_alerts(alerts, RANKINGS[rank])
     if alerts.empty:
         st.info("No spikes for this day with the current category and country filters.")
         return
@@ -784,6 +818,7 @@ def main():
     counts, points = load_view(f)
 
     render_header(latest, counts, len(points))
+    render_top_alerts([code for code, _ in countries])
     with st.sidebar:
         st.subheader("Legend")
         render_legend(counts)

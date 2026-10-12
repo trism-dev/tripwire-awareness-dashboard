@@ -406,3 +406,23 @@ def test_verdict_form_saves_the_verdict_and_reason(conn, app_env, monkeypatch):
     assert row == ("2026-10-01", "UP", "No", "misread_type")
     again = AppTest.from_function(_verdict_form, default_timeout=30).run()
     assert again.radio[0].value == "No"  # remembered on reload
+
+
+def test_top_alerts_sit_above_the_map_new_stories_first(conn, app_env):
+    from datetime import UTC, datetime, timedelta
+
+    yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+    add(conn, 1)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=9.0, day=yesterday)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=9.0)  # ongoing
+    add_spike(conn, "IS", "Protest & unrest", count=12, z=4.0)  # new
+    at = run_app()
+    assert not at.exception
+    sentences = [
+        m.value for m in at.markdown if "articles on" in m.value and "so far today" in m.value
+    ]
+    # the same two sentences also appear in the Alerts tab; the first two are the top-alert cards
+    assert sentences[0].startswith("Israel:")
+    assert sentences[1].startswith("Ukraine:") and sentences[1].endswith("*(ongoing)*")
+    # Only Ukraine has events in the test data, so only its card can offer Show on map.
+    assert [b.label for b in at.button].count("Show on map") == 1
