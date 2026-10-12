@@ -115,6 +115,33 @@ def apply_focus(settings: dict, label: str):
     st.toast(f"Map filtered to {label}. Scroll up to see it.")
 
 
+def url_params(window: str, categories: list[str], countries: list[str]) -> dict[str, str]:
+    """Filters worth putting in the page address, so a link reproduces the view. Defaults are left out."""
+    params = {}
+    if window != next(iter(WINDOWS)):
+        params["window"] = window
+    if list(categories) != list(cat.DEFAULT_VISIBLE):
+        params["categories"] = ",".join(categories)
+    if countries:
+        params["countries"] = ",".join(countries)
+    return params
+
+
+def restore_filters(params, country_codes: list[str]) -> dict:
+    """Sidebar settings from a page address. Anything unknown or malformed is ignored, because the
+    address is typed by whoever sent the link."""
+    out = {}
+    if params.get("window") in WINDOWS:
+        out["window"] = params["window"]
+    chosen = [c for c in params.get("categories", "").split(",") if c in CATEGORY_COLORS]
+    if chosen:
+        out["categories"] = chosen
+    wanted = [c for c in params.get("countries", "").split(",") if c in set(country_codes)]
+    if wanted:
+        out["countries"] = wanted
+    return out
+
+
 def quality_text(score) -> str:
     """The model's estimate that a record is credible, in words a briefer can use."""
     if score is None:
@@ -216,6 +243,15 @@ def load_trend(country: str, category: str, end):
 def render_header(latest, counts: dict, shown: int):
     st.title("Tripwire")
     st.caption("Open-source situational awareness, built on GDELT news events.")
+    with st.expander("How to read this"):
+        st.markdown(
+            "- **Map:** one dot per place and event type. Colour is the category, size is how many "
+            "sources reported it. Click a dot for the actors and the source article.\n"
+            "- **Alerts:** countries whose article count for a category is far above their own normal. "
+            "In a hand audit about 6 in 10 alerts were real, so open the articles before briefing.\n"
+            "- **Quality score:** a small model's rough guess that a record is a real event. It orders "
+            "records; it does not decide what is true."
+        )
     left, middle, right = st.columns(3)
     age = minutes_ago(latest)
     left.metric(
@@ -649,6 +685,9 @@ def main():
         st.info("No data yet. Run `make backfill DAYS=1` to load some events.")
         st.stop()
 
+    if "filters_restored" not in st.session_state:  # once per visit: later runs follow the widgets
+        st.session_state["filters_restored"] = True
+        st.session_state.update(restore_filters(st.query_params, [c for c, _ in countries]))
     st.session_state.setdefault("categories", list(cat.DEFAULT_VISIBLE))
     with st.sidebar:
         st.header("Filters")
@@ -702,6 +741,9 @@ def main():
         min_sources,
         min_quality=min_quality,
     )
+    wanted_params = url_params(window, chosen, picked_countries)
+    if dict(st.query_params) != wanted_params:
+        st.query_params.from_dict(wanted_params)
     counts, points = load_view(f)
 
     render_header(latest, counts, len(points))

@@ -15,9 +15,11 @@ from app.Home import (
     map_focus,
     prepare_points,
     quality_text,
+    restore_filters,
     safe_url,
     selected_ring,
     short_place,
+    url_params,
 )
 from tests.test_queries import add
 
@@ -337,3 +339,36 @@ def test_selected_ring_only_for_a_dot_that_is_on_the_map():
     assert selected_ring(df, gone, dark=False) is None
     assert selected_ring(df, None, dark=False) is None  # before any click
     assert selected_ring(df, {"selection": {"objects": {}}}, dark=False) is None
+
+
+def test_filters_round_trip_through_the_page_address():
+    from tripwire.gdelt.categories import DEFAULT_VISIBLE
+
+    assert (
+        url_params("Last 24 hours", list(DEFAULT_VISIBLE), []) == {}
+    )  # defaults stay out of the URL
+    params = url_params("Last 7 days", ["Armed conflict"], ["UP", "IS"])
+    assert params == {"window": "Last 7 days", "categories": "Armed conflict", "countries": "UP,IS"}
+    assert restore_filters(params, ["UP", "IS", "IR"]) == {
+        "window": "Last 7 days",
+        "categories": ["Armed conflict"],
+        "countries": ["UP", "IS"],
+    }
+
+
+def test_restore_filters_ignores_anything_it_does_not_recognise():
+    junk = {"window": "Last 99 years", "categories": "Nope,<script>", "countries": "ZZ,UP"}
+    assert restore_filters(junk, ["UP"]) == {"countries": ["UP"]}
+    assert restore_filters({}, ["UP"]) == {}
+
+
+def test_page_address_sets_the_sidebar(conn, app_env):
+    add(conn, 1)
+    at = AppTest.from_file(APP, default_timeout=30)
+    at.query_params["window"] = "Last 7 days"
+    at.query_params["countries"] = "UP"
+    at.run()
+    assert not at.exception
+    assert widget(at, "selectbox", "Time window").value == "Last 7 days"
+    assert widget(at, "multiselect", "Countries").value == ["UP"]
+    # Writing the address back is checked in the browser: AppTest does not report it.

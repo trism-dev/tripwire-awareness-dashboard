@@ -196,3 +196,13 @@ fix that.
 - **Map dots** are sized in metres with pixel limits (4 to 14 px) so they spread as you zoom, and a
   ring marks the clicked dot. pydeck turns a bare string like `meters` into a JavaScript variable, so the
   value is passed with inner quotes.
+
+## Shareable filters and an orientation box
+
+- **Filters in the page address.** Window, categories and countries are written to the URL query
+  string (defaults left out) and restored once at the start of a visit, so a link reproduces the view.
+  The address is typed by whoever sent the link, so `restore_filters` ignores anything that is not a
+  known window, category or country code. The selected map dot is not in the link: Streamlit cannot
+  set a map selection from code.
+- **"How to read this"** box under the title, with the honest accuracy line (about 6 in 10 audited
+  alerts were real) so a first-time visitor sees the limit before the numbers.
