@@ -124,20 +124,38 @@ def spike_days(conn: psycopg.Connection, limit: int = 7) -> list:
     return [r[0] for r in rows.fetchall()]
 
 
+ONGOING_DAYS = 3  # a spike is "ongoing" if the same country and category was flagged this recently
+
+
 def spike_alerts(conn: psycopg.Connection, day) -> pd.DataFrame:
-    """The spikes stored for one day, highest score first, with the numbers behind each one."""
+    """The spikes stored for one day, highest score first, with the numbers behind each one.
+
+    `ongoing` is true when the same country and category was also flagged on any of the previous
+    ONGOING_DAYS days: usually the same story continuing, not a new one (see docs/evaluation.md).
+    """
+    columns = [
+        "country_code",
+        "category",
+        "count",
+        "baseline_median",
+        "baseline_mad",
+        "z",
+        "ongoing",
+    ]
     with conn.cursor(row_factory=dict_row) as cur:
         cur.execute(
             """
-            SELECT country_code, category, count, baseline_median, baseline_mad, z
-            FROM spikes WHERE day = %s ORDER BY z DESC, country_code, category
+            SELECT s.country_code, s.category, s.count, s.baseline_median, s.baseline_mad, s.z,
+                   EXISTS (
+                       SELECT 1 FROM spikes p
+                       WHERE p.country_code = s.country_code AND p.category = s.category
+                         AND p.day BETWEEN s.day - %s AND s.day - 1
+                   ) AS ongoing
+            FROM spikes s WHERE s.day = %s ORDER BY s.z DESC, s.country_code, s.category
             """,
-            (day,),
+            (ONGOING_DAYS, day),
         )
-        return pd.DataFrame(
-            cur.fetchall(),
-            columns=["country_code", "category", "count", "baseline_median", "baseline_mad", "z"],
-        )
+        return pd.DataFrame(cur.fetchall(), columns=columns)
 
 
 def export_events(conn: psycopg.Connection, f: Filters, limit: int = EXPORT_LIMIT) -> pd.DataFrame:

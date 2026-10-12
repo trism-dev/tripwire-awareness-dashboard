@@ -180,3 +180,19 @@ Evidence table hides Actors. All of these are still in the CSV export. Alerts sh
 baseline" to "quiet". Verified in the browser at 1024 px. At phone width (390 px) the page does not
 scroll sideways but the tables still scroll inside their own box; a card layout would be needed to
 fix that.
+
+## Alerts: "ongoing" label, sort order, and short sentences
+
+- **Ongoing label.** `queries.spike_alerts` adds `ongoing` (same country and category flagged in the
+  previous 3 days; one SQL `EXISTS`). The Alerts table shows it as Story = new / ongoing and lists new
+  stories first. It replaced the Rule column to keep the table inside its container; the quiet-baseline
+  note moved to a caption under a selected alert. Evidence and caveats: `docs/evaluation.md`, round 3.
+- **Plain sentence per alert** (`alert_sentence`): "Iraq: 13 articles on threats & coercion so far
+  today; a typical day has 5." Shown for the top alert and for the selected row.
+- **Show on map** sets the sidebar window, category and country from an alert (`map_focus`), through a
+  button callback because Streamlit only lets you change a widget's value before it is drawn. Alerts
+  older than 7 days cannot be shown (the map window is 7 days). It narrows the alerts list to that one
+  alert too, because the Alerts tab follows the same filters; that is the existing design.
+- **Map dots** are sized in metres with pixel limits (4 to 14 px) so they spread as you zoom, and a
+  ring marks the clicked dot. pydeck turns a bare string like `meters` into a JavaScript variable, so the
+  value is passed with inner quotes.

@@ -380,15 +380,20 @@ def render_alerts(categories: list[str], countries: list[str], available: list[s
     alerts = alerts[alerts["category"].isin(categories)]
     if countries:
         alerts = alerts[alerts["country_code"].isin(countries)]
-    alerts = alerts.sort_values(RANKINGS[rank], ascending=False).reset_index(drop=True)
+    # New stories first, then continuing ones (they were false more often in the audit); each by rank.
+    alerts = alerts.sort_values(["ongoing", RANKINGS[rank]], ascending=[True, False]).reset_index(
+        drop=True
+    )
     if alerts.empty:
         st.info("No spikes for this day with the current category and country filters.")
         return
     st.caption(
         "A spike is a country and category with at least 10 distinct news articles in a day and a Score of 3 or more. "
         "Score = how far above a typical day it is, measured in normal day-to-day swings; the "
-        "typical day is the median of the previous 28 days. 'Quiet' (in the Rule column) means the place is "
-        "usually near zero, so a Poisson spread is used. Select a row to see its articles below and chart it in the Trend tab."
+        "typical day is the median of the previous 28 days. 'Ongoing' means the same country and category was "
+        "also flagged in the previous 3 days, so it is probably the same story continuing; in the 50-alert "
+        "audit those were real less often (43% against 72%, a small sample). Select a row to see its "
+        "articles below and chart it in the Trend tab."
     )
     top = alerts.iloc[0]
     st.markdown(
@@ -404,7 +409,7 @@ def render_alerts(categories: list[str], countries: list[str], available: list[s
             "Articles": alerts["count"],
             "Typical": alerts["baseline_median"].round(1),
             "Score": alerts["z"].round(1),
-            "Rule": np.where(alerts["baseline_mad"] > 0, "normal", "quiet"),
+            "Story": np.where(alerts["ongoing"], "ongoing", "new"),
         }
     )
     # The key changes with the data, so an old row selection can never point at a different row.
@@ -422,7 +427,7 @@ def render_alerts(categories: list[str], countries: list[str], available: list[s
             Articles=70,
             Typical=70,
             Score=55,
-            Rule=70,
+            Story=70,
         ),
     )
     rows = state.selection.rows
@@ -433,6 +438,10 @@ def render_alerts(categories: list[str], countries: list[str], available: list[s
             st.session_state["trend_country"], st.session_state["trend_category"] = pick
         row = alerts.loc[rows[0]]
         st.markdown(alert_sentence(*pick, row["count"], row["baseline_median"], day, today))
+        if row["baseline_mad"] == 0:
+            st.caption(
+                "Quiet baseline: this place is usually near zero, so the normal spread is a Poisson estimate."
+            )
         focus = map_focus(*pick, day, today)
         if focus and pick[0] in available:
             st.button(

@@ -276,3 +276,27 @@ Two follow-up checks, both using **cross-validation on the training rows only** 
 **What this shows.** With 20 to 30 alerts per set, differences of this size are indistinguishable from chance: two ideas that "won" on dev lost or reversed on the untouched final set. That is exactly why the final set was held back. **The detector is left unchanged: roughly 60 to 65% of alerts are real, and no tested tweak reliably improves that.** The plan's target of 60% alert precision on the final set was already met by the baseline (65%), so it does not count as an improvement.
 
 **Where the errors come from.** About half the false alerts are misread event types in the GDELT coding itself, which the model cannot repair with GDELT fields at this label count (see round 1). The practical lever is the analyst: each alert needs a fast way to verify the underlying articles before briefing. Further statistical tuning would need many more judged alerts (hundreds) to tell small improvements from noise. The 20 final alerts are now used and cannot serve as an untouched test again.
+
+## Refinement round 3: "ongoing" label on alerts (adopted as a label and sort order, not a filter)
+
+**Idea.** Nine of the 19 false alerts were an old event rehashed or the same story alerted again.
+Mark an alert *ongoing* when the same country and category was also flagged on any of the previous
+3 days, and list new stories first.
+
+**Rule set before measuring** (from the plan): adopt if ongoing alerts are false at least 15 points
+more often than new ones on the 50 judged alerts. Windows tried: 1, 2, 3 and 7 days (4 looks, so any
+single p-value is optimistic). 3 days was the planned setting.
+
+| Previous days checked | Ongoing: real | New: real |
+|---|---|---|
+| 1 | 8 of 17 (47%) | 22 of 33 (67%) |
+| 2 | 8 of 19 (42%) | 22 of 31 (71%) |
+| **3 (used)** | **9 of 21 (43%)** | **21 of 29 (72%)** |
+| 7 | 11 of 23 (48%) | 19 of 27 (70%) |
+
+The gap at 3 days is 29 points (Fisher exact p = 0.045; at 1 day p = 0.23). The direction is the same
+at every window, which is some comfort, but this is 50 alerts that I had already looked at while
+building the idea, and there is no unseen set left to confirm it. **Treat it as a hypothesis.** Because
+of that it only labels and reorders: no alert is hidden and precision of the alert list as a whole is
+unchanged (still about 61%, 50 judged). Whether new stories first really improves the top of the list
+needs fresh audits (plan step P0).

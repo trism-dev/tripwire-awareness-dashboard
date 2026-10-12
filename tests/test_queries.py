@@ -190,6 +190,7 @@ def test_spike_days_and_alerts(conn):
     assert [str(d) for d in days] == ["2026-10-02", "2026-10-01"]  # newest first
     alerts = queries.spike_alerts(conn, days[0])
     assert list(alerts["country_code"]) == ["IS", "UP"]  # highest score first
+    assert list(alerts["ongoing"]) == [False, True]  # UP was also flagged the day before
     assert queries.spike_alerts(conn, "2026-09-01").empty
 
 

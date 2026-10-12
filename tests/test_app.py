@@ -156,8 +156,21 @@ def test_alerts_tab_lists_spikes_highest_score_first(conn, app_env):
     assert not at.exception
     table = alerts_table(at)
     assert list(table["Country"]) == ["Israel", "Ukraine"]
-    assert list(table["Rule"]) == ["quiet", "normal"]
+    assert list(table["Story"]) == ["new", "new"]
     assert list(table["Score"]) == [9.5, 6.0]
+
+
+def test_ongoing_stories_are_labelled_and_listed_after_new_ones(conn, app_env):
+    from datetime import UTC, datetime, timedelta
+
+    yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+    add(conn, 1)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=9.0, day=yesterday)
+    add_spike(conn, "UP", "Armed conflict", count=30, z=9.0)  # same story, a day later
+    add_spike(conn, "IS", "Protest & unrest", count=12, z=4.0)  # lower score but new
+    table = alerts_table(run_app())
+    assert list(table["Country"]) == ["Israel", "Ukraine"]
+    assert list(table["Story"]) == ["new", "ongoing"]
 
 
 def test_alerts_can_be_ranked_by_event_count(conn, app_env):
