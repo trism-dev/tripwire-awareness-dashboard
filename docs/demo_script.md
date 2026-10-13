@@ -1,8 +1,8 @@
 # Demo video script (2 minutes)
 
-*A draft to put in your own words. About 345 spoken words (roughly 2.3 minutes at 150 words per
-minute, so speak briskly or use the cut list). Structure from the PRD: problem (20 s), live
-walkthrough (80 s), results and limits (20 s). Updated for the current layout: "Biggest alerts" cards
+*A draft to put in your own words. About 280 spoken words (1.9 minutes at 150 words per
+minute, which leaves about 10 seconds for clicks and pauses, so rehearse with a stopwatch). Structure from the PRD: problem (15 s), live
+walkthrough (85 s), results and limits (20 s). Updated for the current layout: "Biggest alerts" cards
 above the map, Show on map, the Story column, and the shorter tables.*
 
 ## Before you record
@@ -25,68 +25,62 @@ above the map, Show on map, the Story column, and the shorter tables.*
 
 ## Script
 
-**0:00 to 0:20. The problem** (title card, or the map in the background)
+**0:00 to 0:15. The problem** (title card, or the map in the background)
 
-> "A regional watch analyst has to notice when something changes: protests flaring in a city, fighting
-> spreading across a border. The raw signal exists in open news, but it arrives as tens of thousands of
-> machine-coded records a day, and many are duplicated, misplaced or just wrong. They need three
-> things fast: what is happening where, what is unusual, and how much to trust it."
+> "A watch analyst has to notice what changes: protests flaring, fighting spreading. The signal is in
+> open news, but it arrives as tens of thousands of machine-coded records a day, many duplicated,
+> misplaced or wrong. They need three things: what is happening where, what is unusual, and how much
+> to trust it."
 
-**0:20 to 0:45. The page and the alerts** (Home, top of page)
+**0:15 to 0:35. The page and the alerts** (Home, top of page)
 
-> "This is Tripwire. It loads the public GDELT event feed every fifteen minutes, and the header shows
-> how old the data is. Under it are the biggest alerts: countries whose article count for a category is
-> far above their own twenty-eight-day normal. I count distinct articles, not event rows, because one
-> article can create several rows."
+> "This is Tripwire. It loads the public GDELT event feed every fifteen minutes; the header shows how
+> fresh it is. These are the biggest alerts: countries whose count of distinct articles for a category
+> is far above their own twenty-eight-day normal."
 
-*On screen: point at "Last GDELT update"; sweep across the three alert cards; read one sentence aloud.*
+*On screen: point at "Last GDELT update"; sweep across the three cards; rest on the one you chose.*
 
-**0:45 to 1:05. Alert to map** (click Show on map)
+**0:35 to 0:55. Alert to map** (click Show on map)
 
-> "One click filters the map to that country and event type. Dots stay put as you zoom, so they spread
-> apart, and size is how many sources reported it."
+> "One click filters the map to that country and event type. Dots spread as you zoom, and size is how
+> many sources reported it. Click one for who, where, what, and a link to the article. I never store
+> article text."
 
-*On screen: click Show on map on the alert you chose; point at the sidebar filters that changed;
-scroll up if needed; zoom in once; click a dot; show the detail panel and the "Open source article" link.*
+*On screen: click Show on map; point at the sidebar filters that changed; zoom in once; click a dot;
+show the detail panel.*
 
-> "Click a dot and you get who, where, what, and a link to the source article. I never fetch article
-> text; it links out."
+**0:55 to 1:25. Evidence** (Alerts tab)
 
-**1:05 to 1:30. Evidence** (Alerts tab)
+> "The Alerts tab shows the articles behind an alert and how GDELT coded each one. That matters: my
+> audit found about four in ten alerts false, mostly misread event types, so an analyst has to check.
+> Alerts marked ongoing are the same story continuing, and were real less often, though on a small
+> sample."
 
-> "In the Alerts tab, select the alert and you see the articles behind it and how GDELT coded each one.
-> This matters because my audit found about four in ten alerts are false, mostly misread event types, so
-> an analyst needs to check. Alerts marked ongoing are the same story continuing; in my audit those
-> were real less often, though that is a small sample."
+*On screen: select the row; Evidence appears; point at "Coded as" and the Story column; open one link
+(do not read the article).*
 
-*On screen: select the row; the Evidence section appears; point at the "Coded as" column and the
-Story column; open one article link (do not read the article).*
+**1:25 to 1:40. Trend, quality, export** (Trend tab, sidebar)
 
-**1:30 to 1:45. Trend, quality and hand-off** (Trend tab, sidebar, Events table)
+> "Trend charts thirty days against the threshold. A model trained on three hundred hand labels scores
+> event quality, and this toggle hides the low ones. Any view exports to CSV."
 
-> "The Trend tab charts thirty days against the threshold. A small model, trained on three hundred hand
-> labels, scores each event's quality, and this toggle hides the low ones. Any filtered view exports
-> to CSV."
+*On screen: Trend chart; tick "Hide low-quality events" and show the count drop; (optional) click
+Download CSV in the Events table tab without opening it.*
 
-*On screen: Trend tab shows the chart; tick "Hide low-quality events" and show the count drop; Events
-table tab; click Download CSV (do not open the file).*
+**1:40 to 2:00. Results and limits** (About tab, or a plain slide with these lines)
 
-**1:45 to 2:00. Results and limits** (About tab, or a plain slide with these lines)
-
-> "How well does it work? I audited fifty alerts by hand: sixty-one percent were real. The quality
-> model ranks events better than chance, but modestly. Four fixes that looked good on my development
-> set failed on the alerts I held back, so I left the detector alone and wrote that down. It is an aid
-> for prioritising, not a verdict: always open the article. The code, tests and evaluation are open
-> source."
+> "I audited fifty alerts by hand: sixty-one percent were real. The quality model ranks better than
+> chance, but modestly. Four fixes that won on my development set failed on alerts I held back, so I
+> left the detector alone and wrote that down. It is an aid, not a verdict: always open the article.
+> The code and evaluation are open source."
 
 *End on the repo link and the live URL.*
 
-## Cut list if you run over (the four cuts save about 33 seconds)
+## If you still run over
 
-1. Drop the CSV line (saves 5 s).
-2. Drop the "ongoing" sentence in the Evidence section (saves 10 s).
-3. Shorten the problem to two sentences (saves 8 s).
-4. Skip the zoom and dot click (saves 10 s); keep the evidence step, it is the strongest part.
+1. Drop "Any view exports to CSV." and the optional CSV click (about 4 s).
+2. Drop the ongoing sentence in Evidence (about 8 s).
+3. Skip the zoom and dot click in the map step (about 8 s); keep the evidence step, it is the strongest.
 
 ## Checks after recording
 
