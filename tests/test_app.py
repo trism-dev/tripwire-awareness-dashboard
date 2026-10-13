@@ -13,6 +13,7 @@ from app.Home import (
     alert_sentence,
     evidence_table,
     map_focus,
+    minutes_ago,
     prepare_points,
     quality_text,
     restore_filters,
@@ -228,6 +229,13 @@ def test_safe_url_only_allows_http_and_https():
     assert safe_url("http://example.com/a") == "http://example.com/a"
     for bad in ["javascript:alert(1)", "data:text/html,x", "ftp://x", "", None, 42]:
         assert safe_url(bad) is None
+
+
+def test_minutes_ago_is_never_negative_when_the_clock_is_behind():
+    from datetime import UTC, datetime, timedelta
+
+    assert minutes_ago(datetime.now(UTC) + timedelta(minutes=7)) == 0
+    assert minutes_ago(datetime.now(UTC) - timedelta(minutes=7, seconds=5)) == 7
 
 
 def test_age_text():

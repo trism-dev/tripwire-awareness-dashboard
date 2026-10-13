@@ -159,7 +159,8 @@ def quality_text(score) -> str:
 
 
 def minutes_ago(ts) -> int:
-    return int((datetime.now(UTC) - ts).total_seconds() // 60)
+    """Whole minutes since `ts`, never negative (this machine's clock can run a few minutes behind)."""
+    return max(0, int((datetime.now(UTC) - ts).total_seconds() // 60))
 
 
 def age_text(minutes: int) -> str:
